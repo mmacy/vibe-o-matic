@@ -49,6 +49,10 @@ export default function SettingsDrawer() {
               onChange={(e) => updateSettings({ model: e.target.value })}
               className="input w-full"
             >
+              <option value="gpt-5">GPT-5</option>
+              <option value="gpt-5-mini">GPT-5 Mini</option>
+              <option value="gpt-5-nano">GPT-5 Nano</option>
+              <option value="gpt-4.1">GPT-4.1</option>
               <option value="gpt-4o-2024-08-06">GPT-4o (2024-08-06)</option>
               <option value="gpt-4o-mini">GPT-4o Mini</option>
               <option value="gpt-4-turbo">GPT-4 Turbo</option>
