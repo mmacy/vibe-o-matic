@@ -94,7 +94,8 @@ function executeToolCall(name: string, argumentsJson: string): string {
 
 /**
  * Main orchestration function for GM responses
- * Handles tool calls via round-trip pattern
+ * Handles tool calls via round-trip pattern with support for reasoning models
+ * that may make multiple sequential tool calls
  */
 export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
   const { client, messages, rulesContext, moduleContext, model = 'gpt-4o-2024-08-06' } = request
@@ -107,84 +108,82 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
     ...messages,
   ]
 
-  // First API call
-  const response = await client.chat.completions.create({
-    model,
-    messages: messagesWithSystem,
-    tools: tools as OpenAI.Chat.Completions.ChatCompletionTool[],
-    parallel_tool_calls: false, // Force sequential tool calls for determinism
-  })
-
-  const choice = response.choices[0]
-  if (!choice) {
-    throw new Error('No response from API')
-  }
-
   const diceAudit: GMResponse['diceAudit'] = []
   const createdCharacters: CreateCharacterInput[] = []
   let currentMessages = [...messagesWithSystem]
 
-  // Add assistant's message
-  if (choice.message) {
-    currentMessages.push(choice.message)
-  }
+  // Maximum iterations to prevent infinite loops with reasoning models
+  const MAX_ITERATIONS = 10
+  let iterations = 0
 
-  // Check for tool calls
-  if (choice.message.tool_calls && choice.message.tool_calls.length > 0) {
-    // Execute tool calls
-    for (const toolCall of choice.message.tool_calls) {
-      const result = executeToolCall(toolCall.function.name, toolCall.function.arguments)
+  // Loop to handle multiple rounds of tool calls (for reasoning models)
+  while (iterations < MAX_ITERATIONS) {
+    iterations++
 
-      // Parse the result to add to dice audit or character list
-      try {
-        const resultObj = JSON.parse(result)
-        const argsObj = JSON.parse(toolCall.function.arguments)
-
-        if (!resultObj.error) {
-          // Handle dice rolls
-          if (toolCall.function.name === 'roll_dice') {
-            diceAudit.push({
-              source: argsObj.source || 'Unknown',
-              action: argsObj.action || 'roll',
-              target: argsObj.target,
-              total: resultObj.total,
-              expr: resultObj.normalized_expr || argsObj.expr,
-            })
-          }
-
-          // Handle character creation
-          if (toolCall.function.name === 'create_character' && resultObj.character) {
-            createdCharacters.push(resultObj.character)
-          }
-        }
-      } catch {
-        // Ignore parse errors for audit
-      }
-
-      // Add tool result to messages
-      currentMessages.push({
-        role: 'tool',
-        tool_call_id: toolCall.id,
-        content: result,
-      })
-    }
-
-    // Second API call to get final narrative
-    const finalResponse = await client.chat.completions.create({
+    // API call with tools enabled
+    const response = await client.chat.completions.create({
       model,
       messages: currentMessages,
+      tools: tools as OpenAI.Chat.Completions.ChatCompletionTool[],
+      parallel_tool_calls: false, // Force sequential tool calls for determinism
     })
 
-    const finalChoice = finalResponse.choices[0]
-    if (!finalChoice) {
-      throw new Error('No final response from API')
+    const choice = response.choices[0]
+    if (!choice) {
+      throw new Error('No response from API')
     }
 
-    if (finalChoice.message) {
-      currentMessages.push(finalChoice.message)
+    // Add assistant's message to conversation history
+    if (choice.message) {
+      currentMessages.push(choice.message)
     }
 
-    const text = finalChoice.message.content || ''
+    // Check for tool calls
+    if (choice.message.tool_calls && choice.message.tool_calls.length > 0) {
+      // Execute tool calls
+      for (const toolCall of choice.message.tool_calls) {
+        const result = executeToolCall(toolCall.function.name, toolCall.function.arguments)
+
+        // Parse the result to add to dice audit or character list
+        try {
+          const resultObj = JSON.parse(result)
+          const argsObj = JSON.parse(toolCall.function.arguments)
+
+          if (!resultObj.error) {
+            // Handle dice rolls
+            if (toolCall.function.name === 'roll_dice') {
+              diceAudit.push({
+                source: argsObj.source || 'Unknown',
+                action: argsObj.action || 'roll',
+                target: argsObj.target,
+                total: resultObj.total,
+                expr: resultObj.normalized_expr || argsObj.expr,
+              })
+            }
+
+            // Handle character creation
+            if (toolCall.function.name === 'create_character' && resultObj.character) {
+              createdCharacters.push(resultObj.character)
+            }
+          }
+        } catch {
+          // Ignore parse errors for audit
+        }
+
+        // Add tool result to messages
+        currentMessages.push({
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: result,
+        })
+      }
+
+      // Continue loop to let model process tool results and potentially make more calls
+      continue
+    }
+
+    // No tool calls - we have a final response
+    const text = choice.message.content || ''
 
     return {
       text,
@@ -194,8 +193,11 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
     }
   }
 
-  // No tool calls - return direct response
-  const text = choice.message.content || ''
+  // If we hit max iterations, return what we have
+  const lastMessage = currentMessages[currentMessages.length - 1]
+  const text = lastMessage && 'content' in lastMessage && lastMessage.content
+    ? String(lastMessage.content)
+    : 'Maximum iterations reached. Please try again.'
 
   return {
     text,
