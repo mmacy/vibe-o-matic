@@ -4,6 +4,7 @@ import { serializeJournal, appendSessionLogEntry } from '@/lib/journal/serialize
 import { formatTimestamp } from '@/lib/ui/formatting'
 import { summarizeJournalCache } from '@/lib/journal/summarize'
 import { createClient } from '@/lib/openai/client'
+import ReactMarkdown from 'react-markdown'
 
 export default function JournalDrawer() {
   const {
@@ -134,11 +135,11 @@ export default function JournalDrawer() {
             <section>
               <h3 className="mb-3 text-lg font-semibold">Session log</h3>
               {journal.sessionLog.length > 0 ? (
-                <div className="space-y-1 text-sm">
+                <div className="space-y-4 text-sm">
                   {journal.sessionLog.map((entry, index) => (
-                    <p key={index} className="text-text-muted">
-                      {entry}
-                    </p>
+                    <div key={index} className="prose prose-invert prose-sm max-w-none text-text-muted">
+                      <ReactMarkdown>{entry}</ReactMarkdown>
+                    </div>
                   ))}
                 </div>
               ) : (
