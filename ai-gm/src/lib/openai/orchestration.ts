@@ -1,0 +1,192 @@
+import OpenAI from 'openai'
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
+import { rollDice_tool } from '@/lib/dice/roll'
+import { DiceRollInputSchema } from '@/app/state/schema'
+import { tools } from './tools'
+
+export interface GMRequest {
+  client: OpenAI
+  messages: ChatCompletionMessageParam[]
+  rulesContext: string
+  moduleContext: string
+  model?: string
+}
+
+export interface GMResponse {
+  text: string
+  diceAudit: Array<{
+    source: string
+    action: string
+    target?: string
+    total: number
+    expr: string
+  }>
+  fullMessages: ChatCompletionMessageParam[]
+}
+
+/**
+ * Build system instructions for the GM
+ */
+function buildSystemInstructions(rulesContext: string, moduleContext: string): string {
+  return `You are the Game Master for a B/X D&D-compatible tabletop RPG session.
+
+CRITICAL RULES:
+1. **Rule primacy**: You must ONLY use the rules and module provided. Never invent or assume rules from other systems.
+2. **Refusal policy**: If a player attempts an action not supported by the uploaded rules, refuse politely and include a brief excerpt from the rules (max 256 characters) explaining why.
+3. **Dice rolls**: ALL dice rolls MUST be performed using the roll_dice function tool. NEVER simulate, estimate, or make up dice results.
+4. **Response format**: After your narrative, include a "**Dice audit**" section listing all rolls as an unordered list with the format:
+   - SOURCE ACTION TARGET: TOTAL (NdM+/-K)
+   Omit TARGET when there is none.
+   Example: "- Fighter attack Goblin: 17 (1d20+4)"
+5. **Journal**: Keep track of the session. After each significant turn, note what happened in a single line for the session log.
+
+RULES CONTEXT:
+${rulesContext.substring(0, 4000)}
+
+MODULE CONTEXT:
+${moduleContext.substring(0, 4000)}
+
+Remember: Be faithful to the rules, use the dice tool for all rolls, and maintain the game's narrative consistency.`
+}
+
+/**
+ * Execute tool calls locally
+ */
+function executeToolCall(name: string, argumentsJson: string): string {
+  if (name === 'roll_dice') {
+    try {
+      const args = JSON.parse(argumentsJson)
+      const validated = DiceRollInputSchema.parse(args)
+      const result = rollDice_tool(validated)
+
+      return JSON.stringify(result)
+    } catch (error) {
+      return JSON.stringify({
+        error: 'Invalid dice roll parameters',
+        details: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+
+  return JSON.stringify({ error: `Unknown tool: ${name}` })
+}
+
+/**
+ * Main orchestration function for GM responses
+ * Handles tool calls via round-trip pattern
+ */
+export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
+  const { client, messages, rulesContext, moduleContext, model = 'gpt-4o-2024-08-06' } = request
+
+  const systemInstructions = buildSystemInstructions(rulesContext, moduleContext)
+
+  // Build initial messages with system instructions
+  const messagesWithSystem: ChatCompletionMessageParam[] = [
+    { role: 'system', content: systemInstructions },
+    ...messages,
+  ]
+
+  // First API call
+  const response = await client.chat.completions.create({
+    model,
+    messages: messagesWithSystem,
+    tools: tools as OpenAI.Chat.Completions.ChatCompletionTool[],
+    parallel_tool_calls: false, // Force sequential tool calls for determinism
+  })
+
+  const choice = response.choices[0]
+  if (!choice) {
+    throw new Error('No response from API')
+  }
+
+  const diceAudit: GMResponse['diceAudit'] = []
+  let currentMessages = [...messagesWithSystem]
+
+  // Add assistant's message
+  if (choice.message) {
+    currentMessages.push(choice.message)
+  }
+
+  // Check for tool calls
+  if (choice.message.tool_calls && choice.message.tool_calls.length > 0) {
+    // Execute tool calls
+    for (const toolCall of choice.message.tool_calls) {
+      const result = executeToolCall(toolCall.function.name, toolCall.function.arguments)
+
+      // Parse the result to add to dice audit
+      try {
+        const resultObj = JSON.parse(result)
+        const argsObj = JSON.parse(toolCall.function.arguments)
+
+        if (!resultObj.error) {
+          diceAudit.push({
+            source: argsObj.source || 'Unknown',
+            action: argsObj.action || 'roll',
+            target: argsObj.target,
+            total: resultObj.total,
+            expr: resultObj.normalized_expr || argsObj.expr,
+          })
+        }
+      } catch {
+        // Ignore parse errors for audit
+      }
+
+      // Add tool result to messages
+      currentMessages.push({
+        role: 'tool',
+        tool_call_id: toolCall.id,
+        content: result,
+      })
+    }
+
+    // Second API call to get final narrative
+    const finalResponse = await client.chat.completions.create({
+      model,
+      messages: currentMessages,
+    })
+
+    const finalChoice = finalResponse.choices[0]
+    if (!finalChoice) {
+      throw new Error('No final response from API')
+    }
+
+    if (finalChoice.message) {
+      currentMessages.push(finalChoice.message)
+    }
+
+    const text = finalChoice.message.content || ''
+
+    return {
+      text,
+      diceAudit,
+      fullMessages: currentMessages,
+    }
+  }
+
+  // No tool calls - return direct response
+  const text = choice.message.content || ''
+
+  return {
+    text,
+    diceAudit,
+    fullMessages: currentMessages,
+  }
+}
+
+/**
+ * Format dice audit for display
+ */
+export function formatDiceAudit(
+  audit: GMResponse['diceAudit']
+): string {
+  if (audit.length === 0) {
+    return ''
+  }
+
+  const lines = audit.map((roll) => {
+    const target = roll.target ? ` ${roll.target}` : ''
+    return `- ${roll.source} ${roll.action}${target}: ${roll.total} (${roll.expr})`
+  })
+
+  return '\n\n**Dice audit**\n' + lines.join('\n')
+}
