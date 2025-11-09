@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { serializeJournal, appendSessionLogEntry } from '../src/lib/journal/serialize'
+import { serializeJournal, appendSessionLogEntry, updateParty } from '../src/lib/journal/serialize'
 import { parseJournal, createDefaultJournal } from '../src/lib/journal/parse'
 
 describe('serializeJournal', () => {
@@ -82,6 +82,48 @@ describe('appendSessionLogEntry', () => {
     await new Promise((resolve) => setTimeout(resolve, 10))
 
     const updated = appendSessionLogEntry(journal, 'Test entry')
+    expect(updated.frontMatter.updated_at).not.toBe(originalTime)
+  })
+})
+
+describe('updateParty', () => {
+  it('should update party array', () => {
+    const journal = createDefaultJournal('BX', {
+      ability_scores_4d6L: false,
+      level1_max_hp: false,
+    })
+
+    const newParty = [
+      {
+        name: 'Slick',
+        class: 'Thief',
+        level: 1,
+        hp: 4,
+        max_hp: 4,
+        abilities: { str: 9, int: 13, wis: 10, dex: 16, con: 12, cha: 14 },
+        inventory: ['Lockpicks', 'Dagger'],
+        ac: 7,
+        xp: 0,
+      },
+    ]
+
+    const updated = updateParty(journal, newParty)
+    expect(updated.frontMatter.party).toHaveLength(1)
+    expect(updated.frontMatter.party[0].name).toBe('Slick')
+  })
+
+  it('should update timestamp when party changes', async () => {
+    const journal = createDefaultJournal('BX', {
+      ability_scores_4d6L: false,
+      level1_max_hp: false,
+    })
+
+    const originalTime = journal.frontMatter.updated_at
+
+    // Small delay to ensure different timestamp
+    await new Promise((resolve) => setTimeout(resolve, 10))
+
+    const updated = updateParty(journal, [])
     expect(updated.frontMatter.updated_at).not.toBe(originalTime)
   })
 })

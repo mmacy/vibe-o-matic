@@ -87,10 +87,26 @@ export default function ChatPanel() {
         updateJournal((j) => {
           let updatedJournal = appendSessionLogEntry(j, summary)
 
-          // Add any newly created characters to the party
+          // Add or update newly created characters in the party
           if (response.createdCharacters && response.createdCharacters.length > 0) {
             const currentParty = updatedJournal.frontMatter.party
-            const newParty = [...currentParty, ...response.createdCharacters]
+            const newParty = [...currentParty]
+
+            // Merge characters: update existing or add new
+            for (const character of response.createdCharacters) {
+              const existingIndex = newParty.findIndex(
+                (c) => c.name.toLowerCase() === character.name.toLowerCase()
+              )
+
+              if (existingIndex >= 0) {
+                // Update existing character
+                newParty[existingIndex] = character
+              } else {
+                // Add new character
+                newParty.push(character)
+              }
+            }
+
             updatedJournal = updateParty(updatedJournal, newParty)
           }
 
