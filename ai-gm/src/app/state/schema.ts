@@ -54,6 +54,29 @@ export const DiceRollOutputSchema = z.object({
 
 export type DiceRollOutput = z.infer<typeof DiceRollOutputSchema>
 
+// Character creation tool schema (matches party member structure)
+export const CreateCharacterInputSchema = z.object({
+  name: z.string().describe('Character name'),
+  class: z.string().describe('Character class'),
+  level: z.number().describe('Character level'),
+  hp: z.number().describe('Current hit points'),
+  max_hp: z.number().describe('Maximum hit points'),
+  abilities: z.object({
+    str: z.number().describe('Strength'),
+    int: z.number().describe('Intelligence'),
+    wis: z.number().describe('Wisdom'),
+    dex: z.number().describe('Dexterity'),
+    con: z.number().describe('Constitution'),
+    cha: z.number().describe('Charisma'),
+  }).describe('Ability scores'),
+  inventory: z.array(z.string()).default([]).describe('Starting inventory items'),
+  ac: z.number().describe('Armor class'),
+  thac0: z.number().optional().describe('To-hit AC 0 (optional)'),
+  xp: z.number().default(0).describe('Experience points'),
+})
+
+export type CreateCharacterInput = z.infer<typeof CreateCharacterInputSchema>
+
 // Chat message schema
 export const ChatMessageSchema = z.object({
   id: z.string(),

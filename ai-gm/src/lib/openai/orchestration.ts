@@ -1,7 +1,8 @@
 import OpenAI from 'openai'
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
 import { rollDice_tool } from '@/lib/dice/roll'
-import { DiceRollInputSchema } from '@/app/state/schema'
+import { DiceRollInputSchema, CreateCharacterInputSchema } from '@/app/state/schema'
+import type { CreateCharacterInput } from '@/app/state/schema'
 import { tools } from './tools'
 
 export interface GMRequest {
@@ -21,6 +22,7 @@ export interface GMResponse {
     total: number
     expr: string
   }>
+  createdCharacters: CreateCharacterInput[]
   fullMessages: ChatCompletionMessageParam[]
 }
 
@@ -34,11 +36,12 @@ CRITICAL RULES:
 1. **Rule primacy**: You must ONLY use the rules and module provided. Never invent or assume rules from other systems.
 2. **Refusal policy**: If a player attempts an action not supported by the uploaded rules, refuse politely and include a brief excerpt from the rules (max 256 characters) explaining why.
 3. **Dice rolls**: ALL dice rolls MUST be performed using the roll_dice function tool. NEVER simulate, estimate, or make up dice results.
-4. **Response format**: After your narrative, include a "**Dice audit**" section listing all rolls as an unordered list with the format:
+4. **Character creation**: When a player creates a new character, guide them through character creation according to the rules PDF, then MUST call the create_character tool to add the character to the party. Include all required stats (name, class, level, HP, abilities, AC, etc.).
+5. **Response format**: After your narrative, include a "**Dice audit**" section listing all rolls as an unordered list with the format:
    - SOURCE ACTION TARGET: TOTAL (NdM+/-K)
    Omit TARGET when there is none.
    Example: "- Fighter attack Goblin: 17 (1d20+4)"
-5. **Journal**: Keep track of the session. After each significant turn, note what happened in a single line for the session log.
+6. **Journal**: Keep track of the session. After each significant turn, note what happened in a single line for the session log.
 
 RULES CONTEXT:
 ${rulesContext.substring(0, 4000)}
@@ -63,6 +66,24 @@ function executeToolCall(name: string, argumentsJson: string): string {
     } catch (error) {
       return JSON.stringify({
         error: 'Invalid dice roll parameters',
+        details: error instanceof Error ? error.message : String(error),
+      })
+    }
+  }
+
+  if (name === 'create_character') {
+    try {
+      const args = JSON.parse(argumentsJson)
+      const validated = CreateCharacterInputSchema.parse(args)
+
+      // Return the validated character data
+      return JSON.stringify({
+        success: true,
+        character: validated,
+      })
+    } catch (error) {
+      return JSON.stringify({
+        error: 'Invalid character parameters',
         details: error instanceof Error ? error.message : String(error),
       })
     }
@@ -100,6 +121,7 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
   }
 
   const diceAudit: GMResponse['diceAudit'] = []
+  const createdCharacters: CreateCharacterInput[] = []
   let currentMessages = [...messagesWithSystem]
 
   // Add assistant's message
@@ -113,19 +135,27 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
     for (const toolCall of choice.message.tool_calls) {
       const result = executeToolCall(toolCall.function.name, toolCall.function.arguments)
 
-      // Parse the result to add to dice audit
+      // Parse the result to add to dice audit or character list
       try {
         const resultObj = JSON.parse(result)
         const argsObj = JSON.parse(toolCall.function.arguments)
 
         if (!resultObj.error) {
-          diceAudit.push({
-            source: argsObj.source || 'Unknown',
-            action: argsObj.action || 'roll',
-            target: argsObj.target,
-            total: resultObj.total,
-            expr: resultObj.normalized_expr || argsObj.expr,
-          })
+          // Handle dice rolls
+          if (toolCall.function.name === 'roll_dice') {
+            diceAudit.push({
+              source: argsObj.source || 'Unknown',
+              action: argsObj.action || 'roll',
+              target: argsObj.target,
+              total: resultObj.total,
+              expr: resultObj.normalized_expr || argsObj.expr,
+            })
+          }
+
+          // Handle character creation
+          if (toolCall.function.name === 'create_character' && resultObj.character) {
+            createdCharacters.push(resultObj.character)
+          }
         }
       } catch {
         // Ignore parse errors for audit
@@ -159,6 +189,7 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
     return {
       text,
       diceAudit,
+      createdCharacters,
       fullMessages: currentMessages,
     }
   }
@@ -169,6 +200,7 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
   return {
     text,
     diceAudit,
+    createdCharacters,
     fullMessages: currentMessages,
   }
 }
