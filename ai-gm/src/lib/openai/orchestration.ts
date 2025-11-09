@@ -37,7 +37,6 @@ CRITICAL RULES:
 2. **Refusal policy**: If a player attempts an action not supported by the uploaded rules, refuse politely and include a brief excerpt from the rules (max 256 characters) explaining why.
 3. **Dice rolls**: ALL dice rolls MUST be performed using the roll_dice function tool. NEVER simulate, estimate, or make up dice results.
 4. **Character creation**: When a player creates a new character, guide them through character creation according to the rules PDF, then MUST call the create_character tool to add the character to the party. Include all required stats (name, class, level, HP, abilities, AC, etc.).
-5. **Journal**: Keep track of the session. After each significant turn, note what happened in a single line for the session log.
 
 RULES CONTEXT:
 ${rulesContext.substring(0, 4000)}
