@@ -5,6 +5,7 @@ import { nanoid } from 'nanoid'
 import { createClient } from '@/lib/openai/client'
 import { getGMResponse } from '@/lib/openai/orchestration'
 import { appendSessionLogEntry, updateParty } from '@/lib/journal/serialize'
+import { isJournalWorthy, createJournalEntry } from '@/lib/journal/entries'
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
 import ReactMarkdown from 'react-markdown'
 
@@ -85,11 +86,16 @@ export default function ChatPanel() {
       addMessage(assistantMessage)
 
       // Update journal with session log entry and created characters
+      // Only log significant events to avoid cluttering the journal
       if (journal) {
-        const summary = `${userMessage.content.substring(0, 80)}${userMessage.content.length > 80 ? '...' : ''} → ${response.text.substring(0, 80)}${response.text.length > 80 ? '...' : ''}`
-
         updateJournal((j) => {
-          let updatedJournal = appendSessionLogEntry(j, summary)
+          let updatedJournal = j
+
+          // Selective journaling: only log narrative-significant or critical events
+          if (isJournalWorthy(userMessage.content, response)) {
+            const summary = createJournalEntry(userMessage.content, response)
+            updatedJournal = appendSessionLogEntry(updatedJournal, summary)
+          }
 
           // Add or update newly created characters in the party
           if (response.createdCharacters && response.createdCharacters.length > 0) {
