@@ -1,9 +1,25 @@
+import { useState } from 'react'
 import { useAppStore } from '../state/store'
-import { serializeJournal } from '@/lib/journal/serialize'
+import { serializeJournal, appendSessionLogEntry } from '@/lib/journal/serialize'
 import { formatTimestamp } from '@/lib/ui/formatting'
+import { summarizeJournalCache } from '@/lib/journal/summarize'
+import { createClient } from '@/lib/openai/client'
+import ReactMarkdown from 'react-markdown'
 
 export default function JournalDrawer() {
-  const { isJournalOpen, setJournalOpen, journal } = useAppStore()
+  const {
+    isJournalOpen,
+    setJournalOpen,
+    journal,
+    journalEntryCache,
+    clearJournalCache,
+    updateJournal,
+    apiKey,
+    settings,
+  } = useAppStore()
+
+  const [isSummarizing, setIsSummarizing] = useState(false)
+  const [summarizeError, setSummarizeError] = useState<string | null>(null)
 
   if (!isJournalOpen) return null
 
@@ -18,6 +34,29 @@ export default function JournalDrawer() {
     a.download = `ai-gm-journal-${Date.now()}.md`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleSummarize = async () => {
+    if (!apiKey || !journal || journalEntryCache.length === 0) return
+
+    setIsSummarizing(true)
+    setSummarizeError(null)
+
+    try {
+      const client = createClient(apiKey)
+      const summary = await summarizeJournalCache(client, journalEntryCache, settings.model)
+
+      // Add summary to journal
+      updateJournal((j) => appendSessionLogEntry(j, summary))
+
+      // Clear the cache
+      clearJournalCache()
+    } catch (error) {
+      console.error('Error summarizing journal cache:', error)
+      setSummarizeError(error instanceof Error ? error.message : 'Failed to summarize')
+    } finally {
+      setIsSummarizing(false)
+    }
   }
 
   return (
@@ -69,13 +108,38 @@ export default function JournalDrawer() {
             </section>
 
             <section>
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Pending Entries</h3>
+                <button
+                  onClick={handleSummarize}
+                  disabled={journalEntryCache.length === 0 || !apiKey || isSummarizing}
+                  className="btn-primary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSummarizing ? 'Summarizing...' : 'Summarize to Journal'}
+                </button>
+              </div>
+              {journalEntryCache.length > 0 ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-text-muted">
+                    {journalEntryCache.length} interaction{journalEntryCache.length !== 1 ? 's' : ''} waiting to be summarized
+                  </p>
+                  {summarizeError && (
+                    <p className="text-sm text-red-400">{summarizeError}</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-text-muted">No pending interactions</p>
+              )}
+            </section>
+
+            <section>
               <h3 className="mb-3 text-lg font-semibold">Session log</h3>
               {journal.sessionLog.length > 0 ? (
-                <div className="space-y-1 text-sm">
+                <div className="space-y-4 text-sm">
                   {journal.sessionLog.map((entry, index) => (
-                    <p key={index} className="text-text-muted">
-                      {entry}
-                    </p>
+                    <div key={index} className="prose prose-invert prose-sm max-w-none text-text-muted">
+                      <ReactMarkdown>{entry}</ReactMarkdown>
+                    </div>
                   ))}
                 </div>
               ) : (

@@ -106,3 +106,24 @@ export const SettingsSchema = z.object({
 })
 
 export type Settings = z.infer<typeof SettingsSchema>
+
+// Journal entry cache schema (for in-memory collection before AI summarization)
+export const JournalEntryCacheSchema = z.object({
+  userMessage: z.string(),
+  gmResponse: z.string(),
+  timestamp: z.string(),
+  diceAudit: z
+    .array(
+      z.object({
+        source: z.string(),
+        action: z.string(),
+        target: z.string().optional(),
+        total: z.number(),
+        expr: z.string(),
+      })
+    )
+    .optional(),
+  createdCharacters: z.array(CreateCharacterInputSchema).optional(),
+})
+
+export type JournalEntryCache = z.infer<typeof JournalEntryCacheSchema>

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ChatMessage, Settings } from './schema'
+import type { ChatMessage, Settings, JournalEntryCache } from './schema'
 import type { ParsedDocument } from '@/lib/pdf/extract'
 import type { ParsedJournal } from '@/lib/journal/parse'
 import { createDefaultJournal } from '@/lib/journal/parse'
@@ -23,6 +23,11 @@ interface AppState {
   journal: ParsedJournal | null
   setJournal: (journal: ParsedJournal | null) => void
   updateJournal: (updater: (journal: ParsedJournal) => ParsedJournal) => void
+
+  // Journal entry cache (in-memory before AI summarization)
+  journalEntryCache: JournalEntryCache[]
+  addToJournalCache: (entry: JournalEntryCache) => void
+  clearJournalCache: () => void
 
   // Chat messages
   messages: ChatMessage[]
@@ -76,6 +81,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       journal: state.journal ? updater(state.journal) : null,
     })),
+
+  // Journal entry cache
+  journalEntryCache: [],
+  addToJournalCache: (entry) =>
+    set((state) => ({
+      journalEntryCache: [...state.journalEntryCache, entry],
+    })),
+  clearJournalCache: () => set({ journalEntryCache: [] }),
 
   // Messages
   messages: [],

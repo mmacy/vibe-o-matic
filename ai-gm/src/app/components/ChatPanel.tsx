@@ -4,7 +4,7 @@ import DiceAudit from './DiceAudit'
 import { nanoid } from 'nanoid'
 import { createClient } from '@/lib/openai/client'
 import { getGMResponse } from '@/lib/openai/orchestration'
-import { appendSessionLogEntry, updateParty } from '@/lib/journal/serialize'
+import { updateParty } from '@/lib/journal/serialize'
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
 import ReactMarkdown from 'react-markdown'
 
@@ -20,6 +20,7 @@ export default function ChatPanel() {
     modulePdf,
     journal,
     updateJournal,
+    addToJournalCache,
     settings,
   } = useAppStore()
 
@@ -84,37 +85,37 @@ export default function ChatPanel() {
 
       addMessage(assistantMessage)
 
-      // Update journal with session log entry and created characters
-      if (journal) {
-        const summary = `${userMessage.content.substring(0, 80)}${userMessage.content.length > 80 ? '...' : ''} → ${response.text.substring(0, 80)}${response.text.length > 80 ? '...' : ''}`
+      // Add interaction to journal cache for later AI summarization
+      addToJournalCache({
+        userMessage: userMessage.content,
+        gmResponse: response.text,
+        timestamp: assistantMessage.timestamp,
+        diceAudit: response.diceAudit,
+        createdCharacters: response.createdCharacters,
+      })
 
+      // Update party with newly created characters immediately
+      if (journal && response.createdCharacters && response.createdCharacters.length > 0) {
         updateJournal((j) => {
-          let updatedJournal = appendSessionLogEntry(j, summary)
+          const currentParty = j.frontMatter.party
+          const newParty = [...currentParty]
 
-          // Add or update newly created characters in the party
-          if (response.createdCharacters && response.createdCharacters.length > 0) {
-            const currentParty = updatedJournal.frontMatter.party
-            const newParty = [...currentParty]
+          // Merge characters: update existing or add new
+          for (const character of response.createdCharacters) {
+            const existingIndex = newParty.findIndex(
+              (c) => c.name.toLowerCase() === character.name.toLowerCase()
+            )
 
-            // Merge characters: update existing or add new
-            for (const character of response.createdCharacters) {
-              const existingIndex = newParty.findIndex(
-                (c) => c.name.toLowerCase() === character.name.toLowerCase()
-              )
-
-              if (existingIndex >= 0) {
-                // Update existing character
-                newParty[existingIndex] = character
-              } else {
-                // Add new character
-                newParty.push(character)
-              }
+            if (existingIndex >= 0) {
+              // Update existing character
+              newParty[existingIndex] = character
+            } else {
+              // Add new character
+              newParty.push(character)
             }
-
-            updatedJournal = updateParty(updatedJournal, newParty)
           }
 
-          return updatedJournal
+          return updateParty(j, newParty)
         })
       }
     } catch (error) {
