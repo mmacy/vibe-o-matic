@@ -52,26 +52,32 @@ export async function summarizeJournalCache(
 
   const systemPrompt = `You are a skilled Game Master assistant helping to maintain a campaign journal.
 
-Your task is to read a series of game interactions and create a concise, narrative journal entry that captures the important events, decisions, and outcomes.
+Your task is to read a series of game interactions and create a brief, impactful journal entry that captures the important events, decisions, and outcomes.
+
+TONE & STYLE:
+- Write like a succinct Gandalf: wise, measured, and direct
+- Favor brevity and impact over elaborate descriptions
+- Avoid flowery language, excessive adjectives, and dramatic flourishes
+- Use clear, straightforward prose that conveys meaning efficiently
 
 GUIDELINES:
 - Write in past tense, third person perspective
-- Focus on narrative-significant events (combat, discoveries, major decisions, character moments)
-- Include specific details like character names, locations, and outcomes
-- Mention dice rolls only when they're critical to understanding what happened
-- Keep the summary concise but informative (aim for 2-4 paragraphs)
+- Focus on key events: combat outcomes, discoveries, major decisions, character moments
+- Include essential details: character names, locations, outcomes
+- Mention dice rolls only when critical to understanding what happened
+- Keep the summary brief and impactful (aim for 1-3 short paragraphs)
 - If characters were created, note their names and classes
-- Preserve the chronological flow of events
-- Skip trivial interactions like asking for clarification or basic descriptions
+- Preserve chronological flow
+- Skip trivial interactions, clarifications, and minor descriptions
 
 FORMAT:
 Return ONLY the journal entry text. Do not include any preamble, metadata, or commentary about the task.`
 
-  const userPrompt = `Please summarize the following game session interactions into a narrative journal entry:
+  const userPrompt = `Please summarize the following game session interactions into a brief journal entry:
 
 ${formattedCache}
 
-Remember: Focus on what actually happened in the story. Create a journal entry that would help the GM and players remember this session and could help an AI GM continue the adventure later.`
+Remember: Be concise and impactful. Focus on what actually happened. Write like a wise chronicler recording essential facts, not a novelist embellishing a tale.`
 
   const response = await client.chat.completions.create({
     model,
@@ -79,8 +85,8 @@ Remember: Focus on what actually happened in the story. Create a journal entry t
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    temperature: 0.7, // Slightly creative but mostly factual
-    max_tokens: 1000, // Reasonable length for a journal entry
+    temperature: 0.5, // More controlled for concise, factual output
+    max_tokens: 600, // Enforces brevity
   })
 
   const summary = response.choices[0]?.message?.content
