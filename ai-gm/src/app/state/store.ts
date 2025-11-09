@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import type { ChatMessage, Settings, JournalEntryCache } from './schema'
 import type { ParsedDocument } from '@/lib/pdf/extract'
 import type { ParsedJournal } from '@/lib/journal/parse'
@@ -52,21 +53,27 @@ interface AppState {
   initializeJournal: () => void
 }
 
-export const useAppStore = create<AppState>((set, get) => ({
-  // API Key
-  apiKey: null,
-  setApiKey: (key) => set({ apiKey: key }),
+export const useAppStore = create<AppState>()(
+  persist(
+    (set, get) => ({
+      // API Key
+      apiKey: null,
+      setApiKey: (key) => set({ apiKey: key }),
 
-  // Settings
-  settings: {
-    ability_scores_4d6L: false,
-    level1_max_hp: false,
-    model: 'gpt-4o-2024-08-06',
-  },
-  updateSettings: (newSettings) =>
-    set((state) => ({
-      settings: { ...state.settings, ...newSettings },
-    })),
+      // Settings
+      settings: {
+        ability_scores_4d6L: false,
+        level1_max_hp: false,
+        model: 'gpt-4o-2024-08-06',
+        temperature: 1,
+        max_tokens: undefined,
+        rules_pdf_path: undefined,
+        module_pdf_path: undefined,
+      },
+      updateSettings: (newSettings) =>
+        set((state) => ({
+          settings: { ...state.settings, ...newSettings },
+        })),
 
   // Documents
   rulesPdf: null,
@@ -112,15 +119,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
 
-  // Initialize journal
-  initializeJournal: () => {
-    const state = get()
-    if (!state.journal) {
-      const defaultJournal = createDefaultJournal('BX', state.settings)
-      set({ journal: defaultJournal })
+      // Initialize journal
+      initializeJournal: () => {
+        const state = get()
+        if (!state.journal) {
+          const defaultJournal = createDefaultJournal('BX', state.settings)
+          set({ journal: defaultJournal })
+        }
+      },
+    }),
+    {
+      name: 'vibe-o-matic-storage',
+      partialize: (state) => ({ settings: state.settings }),
     }
-  },
-}))
+  )
+)
 
 // Clear API key on page unload
 if (typeof window !== 'undefined') {
