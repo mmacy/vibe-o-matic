@@ -14,6 +14,7 @@ export interface ParsedDiceExpr {
 
 /**
  * Parse a dice expression string into components
+ * Throws an error if the expression is invalid
  */
 export function parseDiceExpr(expr: string): ParsedDiceExpr {
   const trimmed = expr.trim()
@@ -24,32 +25,9 @@ export function parseDiceExpr(expr: string): ParsedDiceExpr {
   const match = base.match(/^(\d+)d(\d+)(([+-])(\d+))?$/i)
 
   if (!match) {
-    // Try to simplify to nearest recognized form
-    // If it contains 'd', try to extract dice components
-    if (base.includes('d')) {
-      const parts = base.split('d')
-      const numDice = parseInt(parts[0]) || 1
-      const remaining = parts[1] || '20'
-      const diceMatch = remaining.match(/^(\d+)/)
-      const diceSize = diceMatch ? parseInt(diceMatch[1]) : 20
-
-      return {
-        numDice,
-        diceSize,
-        modifier: 0,
-        dropLowest,
-        original: expr,
-      }
-    }
-
-    // Default to d20 if unparseable
-    return {
-      numDice: 1,
-      diceSize: 20,
-      modifier: 0,
-      dropLowest: false,
-      original: expr,
-    }
+    throw new Error(
+      `Invalid dice expression: "${expr}". Expected format: NdM[+/-K][L] (e.g., 1d20, 1d20+4, 4d6L)`
+    )
   }
 
   const numDice = parseInt(match[1])
@@ -57,6 +35,14 @@ export function parseDiceExpr(expr: string): ParsedDiceExpr {
   const modifierSign = match[4] || '+'
   const modifierValue = match[5] ? parseInt(match[5]) : 0
   const modifier = modifierSign === '-' ? -modifierValue : modifierValue
+
+  // Validate reasonable ranges
+  if (numDice < 1 || numDice > 100) {
+    throw new Error(`Invalid number of dice: ${numDice}. Must be between 1 and 100.`)
+  }
+  if (diceSize < 2 || diceSize > 1000) {
+    throw new Error(`Invalid die size: ${diceSize}. Must be between 2 and 1000.`)
+  }
 
   return {
     numDice,

@@ -74,51 +74,47 @@ export async function extractTextFromPDF(file: File): Promise<ParsedDocument> {
 
 /**
  * Extract OSE/B/X style stat blocks from text
- * Pattern looks for lines containing AC, HD, HP, etc.
+ * Uses global regex to find all occurrences in the text
  */
 function extractStatBlocks(text: string): StatBlock[] {
   const blocks: StatBlock[] = []
-  const lines = text.split(/\n+/)
 
-  // Look for stat block patterns
+  // Look for stat block patterns with global flag
   // Typical format: "AC X, HD Y, HP Z, MV A, Att B, Dmg C, Save D, Morale E, XP F"
+  // Capture context before the stat block to extract the creature name
   const statBlockRegex =
-    /AC\s*[:\s]*([^,]+),?\s*HD\s*[:\s]*([^,]+),?\s*HP\s*[:\s]*([^,]+)/i
+    /([A-Z][A-Za-z\s'-]+?)\s+AC\s*[:\s]*([^,]+),?\s*HD\s*[:\s]*([^,]+),?\s*HP\s*[:\s]*([^,]+)[^.]*?(?=(?:[A-Z][A-Za-z\s'-]+?\s+AC|$))/gi
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-    const match = line.match(statBlockRegex)
+  const matches = text.matchAll(statBlockRegex)
 
-    if (match) {
-      // Found a potential stat block
-      // Try to extract creature name from previous line
-      const name = i > 0 ? lines[i - 1].trim() : 'Unknown'
+  for (const match of matches) {
+    const fullMatch = match[0]
+    const name = match[1].trim()
+    const ac = match[2].trim()
+    const hd = match[3].trim()
+    const hp = match[4].trim()
 
-      // Parse all stat components
-      const ac = extractField(line, 'AC') || match[1].trim()
-      const hd = extractField(line, 'HD') || match[2].trim()
-      const hp = extractField(line, 'HP') || match[3].trim()
-      const mv = extractField(line, 'MV') || extractField(line, 'Move') || ''
-      const att = extractField(line, 'Att') || extractField(line, 'Attack') || ''
-      const dmg = extractField(line, 'Dmg') || extractField(line, 'Damage') || ''
-      const save = extractField(line, 'Save') || extractField(line, 'Sv') || ''
-      const morale = extractField(line, 'Morale') || extractField(line, 'ML') || ''
-      const xp = extractField(line, 'XP') || ''
+    // Extract additional fields from the full match
+    const mv = extractField(fullMatch, 'MV') || extractField(fullMatch, 'Move') || ''
+    const att = extractField(fullMatch, 'Att') || extractField(fullMatch, 'Attack') || ''
+    const dmg = extractField(fullMatch, 'Dmg') || extractField(fullMatch, 'Damage') || ''
+    const save = extractField(fullMatch, 'Save') || extractField(fullMatch, 'Sv') || ''
+    const morale = extractField(fullMatch, 'Morale') || extractField(fullMatch, 'ML') || ''
+    const xp = extractField(fullMatch, 'XP') || ''
 
-      blocks.push({
-        name,
-        ac,
-        hd,
-        hp,
-        mv,
-        att,
-        dmg,
-        save,
-        morale,
-        xp,
-        text: line,
-      })
-    }
+    blocks.push({
+      name,
+      ac,
+      hd,
+      hp,
+      mv,
+      att,
+      dmg,
+      save,
+      morale,
+      xp,
+      text: fullMatch,
+    })
   }
 
   return blocks

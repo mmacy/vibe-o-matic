@@ -68,10 +68,20 @@ describe('parseDiceExpr', () => {
     })
   })
 
-  it('should handle invalid input gracefully', () => {
-    const result = parseDiceExpr('invalid')
-    expect(result.numDice).toBe(1)
-    expect(result.diceSize).toBe(20)
+  it('should throw error on invalid input', () => {
+    expect(() => parseDiceExpr('invalid')).toThrow('Invalid dice expression')
+  })
+
+  it('should throw error on malformed expression', () => {
+    expect(() => parseDiceExpr('1d20+X')).toThrow('Invalid dice expression')
+  })
+
+  it('should throw error on too many dice', () => {
+    expect(() => parseDiceExpr('101d6')).toThrow('Invalid number of dice')
+  })
+
+  it('should throw error on invalid die size', () => {
+    expect(() => parseDiceExpr('1d1')).toThrow('Invalid die size')
   })
 })
 
