@@ -1,0 +1,148 @@
+import { useState, useRef, useEffect } from 'react'
+import { useAppStore } from '../state/store'
+import DiceAudit from './DiceAudit'
+import { nanoid } from 'nanoid'
+import { createClient } from '@/lib/openai/client'
+import { getGMResponse, formatDiceAudit } from '@/lib/openai/orchestration'
+import { appendSessionLogEntry } from '@/lib/journal/serialize'
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
+
+export default function ChatPanel() {
+  const {
+    apiKey,
+    messages,
+    addMessage,
+    isLoading,
+    setLoading,
+    setError,
+    rulesPdf,
+    modulePdf,
+    journal,
+    updateJournal,
+    settings,
+  } = useAppStore()
+
+  const [input, setInput] = useState('')
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!input.trim() || !apiKey || !rulesPdf || !modulePdf) return
+
+    const userMessage = {
+      id: nanoid(),
+      role: 'user' as const,
+      content: input.trim(),
+      timestamp: new Date().toISOString(),
+    }
+
+    addMessage(userMessage)
+    setInput('')
+    setLoading(true)
+    setError(null)
+
+    try {
+      const client = createClient(apiKey)
+
+      // Build messages for API
+      const apiMessages: ChatCompletionMessageParam[] = messages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }))
+      apiMessages.push({
+        role: 'user',
+        content: userMessage.content,
+      })
+
+      // Get GM response
+      const response = await getGMResponse({
+        client,
+        messages: apiMessages,
+        rulesContext: rulesPdf.fullText,
+        moduleContext: modulePdf.fullText,
+        model: settings.model,
+      })
+
+      // Format response with dice audit
+      const fullResponse = response.text + formatDiceAudit(response.diceAudit)
+
+      const assistantMessage = {
+        id: nanoid(),
+        role: 'assistant' as const,
+        content: fullResponse,
+        timestamp: new Date().toISOString(),
+        dice_audit: response.diceAudit,
+      }
+
+      addMessage(assistantMessage)
+
+      // Update journal with session log entry
+      if (journal) {
+        const summary = `${userMessage.content.substring(0, 80)}${userMessage.content.length > 80 ? '...' : ''} → ${response.text.substring(0, 80)}${response.text.length > 80 ? '...' : ''}`
+        updateJournal((j) => appendSessionLogEntry(j, summary))
+      }
+    } catch (error) {
+      console.error('Error getting GM response:', error)
+      setError(error instanceof Error ? error.message : 'Unknown error occurred')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-6">
+        {messages.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-text-muted">
+            <p>Start your adventure by sending a message...</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`rounded-lg p-4 ${
+                  message.role === 'user'
+                    ? 'ml-auto max-w-2xl bg-primary text-white'
+                    : 'mr-auto max-w-3xl bg-background-lighter'
+                }`}
+              >
+                <div className="whitespace-pre-wrap">{message.content}</div>
+                {message.dice_audit && message.dice_audit.length > 0 && (
+                  <DiceAudit rolls={message.dice_audit} />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <div className="border-t border-slate-700 bg-background-lighter p-4">
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Describe your action..."
+            disabled={isLoading || !apiKey || !rulesPdf || !modulePdf}
+            className="input flex-1"
+          />
+          <button
+            type="submit"
+            disabled={isLoading || !input.trim() || !apiKey || !rulesPdf || !modulePdf}
+            className="btn-primary"
+          >
+            {isLoading ? 'Thinking...' : 'Send'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
