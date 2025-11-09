@@ -25,6 +25,7 @@ export default function ChatPanel() {
 
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -45,6 +46,11 @@ export default function ChatPanel() {
     setInput('')
     setLoading(true)
     setError(null)
+
+    // Focus input after sending
+    setTimeout(() => {
+      inputRef.current?.focus()
+    }, 0)
 
     try {
       const client = createClient(apiKey)
@@ -155,6 +161,7 @@ export default function ChatPanel() {
       <div className="border-t border-slate-700 bg-background-lighter p-4">
         <form onSubmit={handleSubmit} className="flex gap-2">
           <input
+            ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
