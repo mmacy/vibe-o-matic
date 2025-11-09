@@ -4,7 +4,7 @@ import DiceAudit from './DiceAudit'
 import { nanoid } from 'nanoid'
 import { createClient } from '@/lib/openai/client'
 import { getGMResponse, formatDiceAudit } from '@/lib/openai/orchestration'
-import { appendSessionLogEntry } from '@/lib/journal/serialize'
+import { appendSessionLogEntry, updateParty } from '@/lib/journal/serialize'
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
 
 export default function ChatPanel() {
@@ -80,10 +80,38 @@ export default function ChatPanel() {
 
       addMessage(assistantMessage)
 
-      // Update journal with session log entry
+      // Update journal with session log entry and created characters
       if (journal) {
         const summary = `${userMessage.content.substring(0, 80)}${userMessage.content.length > 80 ? '...' : ''} → ${response.text.substring(0, 80)}${response.text.length > 80 ? '...' : ''}`
-        updateJournal((j) => appendSessionLogEntry(j, summary))
+
+        updateJournal((j) => {
+          let updatedJournal = appendSessionLogEntry(j, summary)
+
+          // Add or update newly created characters in the party
+          if (response.createdCharacters && response.createdCharacters.length > 0) {
+            const currentParty = updatedJournal.frontMatter.party
+            const newParty = [...currentParty]
+
+            // Merge characters: update existing or add new
+            for (const character of response.createdCharacters) {
+              const existingIndex = newParty.findIndex(
+                (c) => c.name.toLowerCase() === character.name.toLowerCase()
+              )
+
+              if (existingIndex >= 0) {
+                // Update existing character
+                newParty[existingIndex] = character
+              } else {
+                // Add new character
+                newParty.push(character)
+              }
+            }
+
+            updatedJournal = updateParty(updatedJournal, newParty)
+          }
+
+          return updatedJournal
+        })
       }
     } catch (error) {
       console.error('Error getting GM response:', error)
