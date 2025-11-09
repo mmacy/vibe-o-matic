@@ -106,7 +106,7 @@ src/
 **Tool-Driven Dice**
 - All dice rolls use the `roll_dice` function tool
 - GM never simulates or makes up results
-- Each response includes a "Dice audit" section
+- Dice results appear in the dedicated Dice audit panel, separate from the narrative transcript
 
 **Rules Primacy**
 - GM only uses uploaded rules and module
