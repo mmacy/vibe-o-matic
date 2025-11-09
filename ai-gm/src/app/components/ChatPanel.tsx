@@ -3,9 +3,10 @@ import { useAppStore } from '../state/store'
 import DiceAudit from './DiceAudit'
 import { nanoid } from 'nanoid'
 import { createClient } from '@/lib/openai/client'
-import { getGMResponse, formatDiceAudit } from '@/lib/openai/orchestration'
+import { getGMResponse } from '@/lib/openai/orchestration'
 import { appendSessionLogEntry, updateParty } from '@/lib/journal/serialize'
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
+import ReactMarkdown from 'react-markdown'
 
 export default function ChatPanel() {
   const {
@@ -67,13 +68,10 @@ export default function ChatPanel() {
         model: settings.model,
       })
 
-      // Format response with dice audit
-      const fullResponse = response.text + formatDiceAudit(response.diceAudit)
-
       const assistantMessage = {
         id: nanoid(),
         role: 'assistant' as const,
-        content: fullResponse,
+        content: response.text,
         timestamp: new Date().toISOString(),
         dice_audit: response.diceAudit,
       }
@@ -140,7 +138,9 @@ export default function ChatPanel() {
                     : 'mr-auto max-w-3xl bg-background-lighter'
                 }`}
               >
-                <div className="whitespace-pre-wrap">{message.content}</div>
+                <div className="prose prose-invert max-w-none">
+                  <ReactMarkdown>{message.content}</ReactMarkdown>
+                </div>
                 {message.dice_audit && message.dice_audit.length > 0 && (
                   <DiceAudit rolls={message.dice_audit} />
                 )}
