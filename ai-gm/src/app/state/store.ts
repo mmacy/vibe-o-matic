@@ -167,6 +167,22 @@ export const useAppStore = create<AppState>()(
           removeItem: () => {},
         }
       }),
+      merge: (persistedState, currentState) => {
+        // Merge persisted state with current state, ensuring new fields have defaults
+        const persisted = persistedState as Partial<AppState>
+        return {
+          ...currentState,
+          ...persisted,
+          settings: {
+            ...currentState.settings,
+            ...(persisted.settings || {}),
+            // Ensure history arrays always exist
+            rules_pdf_history: persisted.settings?.rules_pdf_history || [],
+            module_pdf_history: persisted.settings?.module_pdf_history || [],
+            journal_file_history: persisted.settings?.journal_file_history || [],
+          },
+        }
+      },
     }
   )
 )
