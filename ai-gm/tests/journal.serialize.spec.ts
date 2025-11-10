@@ -1,13 +1,22 @@
 import { describe, it, expect } from 'vitest'
 import { serializeJournal, appendSessionLogEntry, updateParty } from '../src/lib/journal/serialize'
 import { parseJournal, createDefaultJournal } from '../src/lib/journal/parse'
+import type { Settings } from '../src/app/state/schema'
+
+// Default settings for testing
+const defaultSettings: Settings = {
+  ability_scores_4d6L: false,
+  level1_max_hp: false,
+  model: 'gpt-4o-2024-08-06',
+  temperature: 1,
+  max_tokens: undefined,
+  rules_pdf_path: undefined,
+  module_pdf_path: undefined,
+}
 
 describe('serializeJournal', () => {
   it('should serialize default journal', () => {
-    const journal = createDefaultJournal('BX', {
-      ability_scores_4d6L: false,
-      level1_max_hp: false,
-    })
+    const journal = createDefaultJournal('BX', defaultSettings)
 
     const markdown = serializeJournal(journal)
 
@@ -20,10 +29,7 @@ describe('serializeJournal', () => {
   })
 
   it('should include party information', () => {
-    const journal = createDefaultJournal('BX', {
-      ability_scores_4d6L: false,
-      level1_max_hp: false,
-    })
+    const journal = createDefaultJournal('BX', defaultSettings)
 
     journal.frontMatter.party = [
       {
@@ -46,6 +52,7 @@ describe('serializeJournal', () => {
 
   it('should round-trip correctly', () => {
     const original = createDefaultJournal('BX', {
+      ...defaultSettings,
       ability_scores_4d6L: true,
       level1_max_hp: true,
     })
@@ -61,20 +68,14 @@ describe('serializeJournal', () => {
 
 describe('appendSessionLogEntry', () => {
   it('should append entry to session log', () => {
-    const journal = createDefaultJournal('BX', {
-      ability_scores_4d6L: false,
-      level1_max_hp: false,
-    })
+    const journal = createDefaultJournal('BX', defaultSettings)
 
     const updated = appendSessionLogEntry(journal, 'The party entered the dungeon')
     expect(updated.sessionLog).toContain('The party entered the dungeon')
   })
 
   it('should update timestamp', async () => {
-    const journal = createDefaultJournal('BX', {
-      ability_scores_4d6L: false,
-      level1_max_hp: false,
-    })
+    const journal = createDefaultJournal('BX', defaultSettings)
 
     const originalTime = journal.frontMatter.updated_at
 
@@ -88,10 +89,7 @@ describe('appendSessionLogEntry', () => {
 
 describe('updateParty', () => {
   it('should update party array', () => {
-    const journal = createDefaultJournal('BX', {
-      ability_scores_4d6L: false,
-      level1_max_hp: false,
-    })
+    const journal = createDefaultJournal('BX', defaultSettings)
 
     const newParty = [
       {
@@ -113,10 +111,7 @@ describe('updateParty', () => {
   })
 
   it('should update timestamp when party changes', async () => {
-    const journal = createDefaultJournal('BX', {
-      ability_scores_4d6L: false,
-      level1_max_hp: false,
-    })
+    const journal = createDefaultJournal('BX', defaultSettings)
 
     const originalTime = journal.frontMatter.updated_at
 
