@@ -143,11 +143,11 @@ export default function Home() {
                   onUpload={handleRulesUpload}
                   isUploaded={!!rulesPdf}
                 />
-                {settings.rules_pdf_history.length > 0 && (
+                {settings.rules_pdf_history?.length > 0 && (
                   <div className="mt-2 text-xs text-text-muted">
                     <div className="mb-1">Recent files:</div>
                     <ul className="ml-4 list-disc space-y-1">
-                      {settings.rules_pdf_history.map((path, idx) => (
+                      {settings.rules_pdf_history?.map((path, idx) => (
                         <li key={idx} className={idx === 0 ? 'font-semibold' : ''}>
                           {path}
                         </li>
@@ -162,11 +162,11 @@ export default function Home() {
                   onUpload={handleModuleUpload}
                   isUploaded={!!modulePdf}
                 />
-                {settings.module_pdf_history.length > 0 && (
+                {settings.module_pdf_history?.length > 0 && (
                   <div className="mt-2 text-xs text-text-muted">
                     <div className="mb-1">Recent files:</div>
                     <ul className="ml-4 list-disc space-y-1">
-                      {settings.module_pdf_history.map((path, idx) => (
+                      {settings.module_pdf_history?.map((path, idx) => (
                         <li key={idx} className={idx === 0 ? 'font-semibold' : ''}>
                           {path}
                         </li>
@@ -212,11 +212,11 @@ export default function Home() {
                   </p>
                 </>
               )}
-              {settings.journal_file_history.length > 0 && (
+              {settings.journal_file_history?.length > 0 && (
                 <div className="mt-2 text-xs text-text-muted">
                   <div className="mb-1">Recent files:</div>
                   <ul className="ml-4 list-disc space-y-1">
-                    {settings.journal_file_history.map((path, idx) => (
+                    {settings.journal_file_history?.map((path, idx) => (
                       <li key={idx} className={idx === 0 ? 'font-semibold' : ''}>
                         {path}
                       </li>

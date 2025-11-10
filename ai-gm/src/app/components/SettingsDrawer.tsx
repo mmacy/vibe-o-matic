@@ -130,11 +130,11 @@ export default function SettingsDrawer() {
                   placeholder="/path/to/rules.pdf"
                   className="input w-full font-mono text-sm"
                 />
-                {settings.rules_pdf_history.length > 0 && (
+                {settings.rules_pdf_history?.length > 0 && (
                   <div className="mt-2">
                     <div className="mb-1 text-xs text-text-muted">Recent files:</div>
                     <div className="flex flex-wrap gap-1">
-                      {settings.rules_pdf_history.map((path, idx) => (
+                      {settings.rules_pdf_history?.map((path, idx) => (
                         <button
                           key={idx}
                           onClick={() => updateSettings({ rules_pdf_path: path })}
@@ -161,11 +161,11 @@ export default function SettingsDrawer() {
                   placeholder="/path/to/module.pdf"
                   className="input w-full font-mono text-sm"
                 />
-                {settings.module_pdf_history.length > 0 && (
+                {settings.module_pdf_history?.length > 0 && (
                   <div className="mt-2">
                     <div className="mb-1 text-xs text-text-muted">Recent files:</div>
                     <div className="flex flex-wrap gap-1">
-                      {settings.module_pdf_history.map((path, idx) => (
+                      {settings.module_pdf_history?.map((path, idx) => (
                         <button
                           key={idx}
                           onClick={() => updateSettings({ module_pdf_path: path })}
