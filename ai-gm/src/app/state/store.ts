@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import type { ChatMessage, Settings, JournalEntryCache } from './schema'
 import type { ParsedDocument } from '@/lib/pdf/extract'
 import type { ParsedJournal } from '@/lib/journal/parse'
@@ -131,6 +131,18 @@ export const useAppStore = create<AppState>()(
     {
       name: 'vibe-o-matic-storage',
       partialize: (state) => ({ settings: state.settings }),
+      storage: createJSONStorage(() => {
+        // SSR-safe storage: only use localStorage in browser environment
+        if (typeof window !== 'undefined') {
+          return localStorage
+        }
+        // Return a no-op storage for SSR
+        return {
+          getItem: () => null,
+          setItem: () => {},
+          removeItem: () => {},
+        }
+      }),
     }
   )
 )
