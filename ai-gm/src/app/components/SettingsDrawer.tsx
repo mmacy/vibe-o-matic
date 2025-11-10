@@ -4,6 +4,9 @@ import { formatLabel } from '@/lib/ui/formatting'
 export default function SettingsDrawer() {
   const { isSettingsOpen, setSettingsOpen, settings, updateSettings } = useAppStore()
 
+  // GPT-5 models don't support temperature or max_tokens parameters
+  const isGPT5Model = settings.model.toLowerCase().includes('gpt-5')
+
   if (!isSettingsOpen) return null
 
   return (
@@ -76,10 +79,13 @@ export default function SettingsDrawer() {
                     const value = parseFloat(e.target.value)
                     updateSettings({ temperature: isNaN(value) ? 1 : value })
                   }}
-                  className="input w-full"
+                  disabled={isGPT5Model}
+                  className="input w-full disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <p className="mt-1 text-xs text-text-muted">
-                  Higher values make output more random, lower values more focused
+                  {isGPT5Model
+                    ? 'Not supported by GPT-5 models'
+                    : 'Higher values make output more random, lower values more focused'}
                 </p>
               </div>
               <div>
@@ -98,10 +104,13 @@ export default function SettingsDrawer() {
                     })
                   }
                   placeholder="Default (model-specific)"
-                  className="input w-full"
+                  disabled={isGPT5Model}
+                  className="input w-full disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <p className="mt-1 text-xs text-text-muted">
-                  Limits the length of GM responses
+                  {isGPT5Model
+                    ? 'Not supported by GPT-5 models (uses max_completion_tokens instead)'
+                    : 'Limits the length of GM responses'}
                 </p>
               </div>
             </div>
