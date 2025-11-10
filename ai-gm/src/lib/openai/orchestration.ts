@@ -4,12 +4,14 @@ import { rollDice_tool } from '@/lib/dice/roll'
 import { DiceRollInputSchema, CreateCharacterInputSchema } from '@/app/state/schema'
 import type { CreateCharacterInput } from '@/app/state/schema'
 import { tools } from './tools'
+import type { ParsedJournal } from '@/lib/journal/parse'
 
 export interface GMRequest {
   client: OpenAI
   messages: ChatCompletionMessageParam[]
   rulesContext: string
   moduleContext: string
+  journal?: ParsedJournal | null
   model?: string
   settings?: {
     ability_scores_4d6L?: boolean
@@ -38,6 +40,7 @@ export interface GMResponse {
 function buildSystemInstructions(
   rulesContext: string,
   moduleContext: string,
+  journal?: ParsedJournal | null,
   settings?: { ability_scores_4d6L?: boolean; level1_max_hp?: boolean }
 ): string {
   let homebrewRules = ''
@@ -49,6 +52,57 @@ function buildSystemInstructions(
     }
     if (settings.level1_max_hp) {
       homebrewRules += '- **Level 1 maximum HP**: All level 1 characters receive maximum hit points from their hit die (do not roll).\n'
+    }
+  }
+
+  // Build journal context if available
+  let journalContext = ''
+  if (journal) {
+    journalContext = '\n\n## JOURNAL CONTEXT (SAVED GAME STATE)\n'
+    journalContext += 'The following information represents the current state of the adventure. You MUST use this context to understand where the party is, what they have done, and who the characters are.\n\n'
+
+    // Add party information
+    if (journal.frontMatter.party && journal.frontMatter.party.length > 0) {
+      journalContext += '### PARTY:\n'
+      journal.frontMatter.party.forEach((character) => {
+        journalContext += `- **${character.name}** (${character.class}, Level ${character.level})\n`
+        journalContext += `  - HP: ${character.hp}/${character.max_hp}\n`
+        journalContext += `  - AC: ${character.ac}, THAC0: ${character.thac0 || 'N/A'}, XP: ${character.xp}\n`
+        journalContext += `  - Abilities: STR ${character.abilities.str}, INT ${character.abilities.int}, WIS ${character.abilities.wis}, DEX ${character.abilities.dex}, CON ${character.abilities.con}, CHA ${character.abilities.cha}\n`
+        if (character.inventory && character.inventory.length > 0) {
+          journalContext += `  - Inventory: ${character.inventory.join(', ')}\n`
+        }
+      })
+      journalContext += '\n'
+    }
+
+    // Add session log
+    if (journal.sessionLog && journal.sessionLog.length > 0) {
+      journalContext += '### SESSION LOG (Previous events):\n'
+      // Limit to last 10 entries to avoid token bloat, or all if fewer
+      const recentLog = journal.sessionLog.slice(-10)
+      recentLog.forEach((entry) => {
+        journalContext += `${entry}\n`
+      })
+      journalContext += '\n'
+    }
+
+    // Add characters section (narrative descriptions)
+    if (journal.characters && journal.characters.trim().length > 0) {
+      journalContext += '### CHARACTER DETAILS:\n'
+      journalContext += journal.characters.trim() + '\n\n'
+    }
+
+    // Add inventory section (party-wide inventory)
+    if (journal.inventory && journal.inventory.trim().length > 0) {
+      journalContext += '### PARTY INVENTORY:\n'
+      journalContext += journal.inventory.trim() + '\n\n'
+    }
+
+    // Add house rules from journal
+    if (journal.houseRules && journal.houseRules.trim().length > 0) {
+      journalContext += '### HOUSE RULES (from journal):\n'
+      journalContext += journal.houseRules.trim() + '\n\n'
     }
   }
 
@@ -65,7 +119,7 @@ ${rulesContext.substring(0, 4000)}
 
 MODULE CONTEXT:
 ${moduleContext.substring(0, 4000)}
-
+${journalContext}
 Remember: Be faithful to the rules, use the dice tool for all rolls, and maintain the game's narrative consistency.`
 }
 
@@ -115,9 +169,9 @@ function executeToolCall(name: string, argumentsJson: string): string {
  * that may make multiple sequential tool calls
  */
 export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
-  const { client, messages, rulesContext, moduleContext, model = 'gpt-4o-2024-08-06', settings } = request
+  const { client, messages, rulesContext, moduleContext, journal, model = 'gpt-4o-2024-08-06', settings } = request
 
-  const systemInstructions = buildSystemInstructions(rulesContext, moduleContext, settings)
+  const systemInstructions = buildSystemInstructions(rulesContext, moduleContext, journal, settings)
 
   // Build initial messages with system instructions
   const messagesWithSystem: ChatCompletionMessageParam[] = [
