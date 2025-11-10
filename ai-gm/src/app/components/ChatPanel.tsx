@@ -72,6 +72,7 @@ export default function ChatPanel() {
         messages: apiMessages,
         rulesContext: rulesPdf.fullText,
         moduleContext: modulePdf.fullText,
+        journal,
         model: settings.model,
         settings,
       })
