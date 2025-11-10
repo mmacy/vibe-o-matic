@@ -109,6 +109,9 @@ export const SettingsSchema = z.object({
   max_tokens: z.number().min(1).max(16000).optional(),
   rules_pdf_path: z.string().optional(),
   module_pdf_path: z.string().optional(),
+  rules_pdf_history: z.array(z.string()).default([]),
+  module_pdf_history: z.array(z.string()).default([]),
+  journal_file_history: z.array(z.string()).default([]),
 })
 
 export type Settings = z.infer<typeof SettingsSchema>

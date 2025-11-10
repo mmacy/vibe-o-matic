@@ -13,6 +13,7 @@ interface AppState {
   // Settings
   settings: Settings
   updateSettings: (settings: Partial<Settings>) => void
+  addToFileHistory: (type: 'rules_pdf' | 'module_pdf' | 'journal_file', path: string) => void
 
   // Uploaded documents
   rulesPdf: ParsedDocument | null
@@ -69,11 +70,34 @@ export const useAppStore = create<AppState>()(
         max_tokens: undefined,
         rules_pdf_path: undefined,
         module_pdf_path: undefined,
+        rules_pdf_history: [],
+        module_pdf_history: [],
+        journal_file_history: [],
       },
       updateSettings: (newSettings) =>
         set((state) => ({
           settings: { ...state.settings, ...newSettings },
         })),
+      addToFileHistory: (type, path) =>
+        set((state) => {
+          const historyKey = `${type}_history` as keyof Settings
+          const pathKey = `${type}_path` as keyof Settings
+          const currentHistory = (state.settings[historyKey] as string[]) || []
+
+          // Remove the path if it already exists to avoid duplicates
+          const filteredHistory = currentHistory.filter((p) => p !== path)
+
+          // Add the new path to the beginning and keep only last 4
+          const newHistory = [path, ...filteredHistory].slice(0, 4)
+
+          return {
+            settings: {
+              ...state.settings,
+              [historyKey]: newHistory,
+              [pathKey]: path,
+            },
+          }
+        }),
 
   // Documents
   rulesPdf: null,

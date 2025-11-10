@@ -21,6 +21,8 @@ export default function Home() {
     initializeJournal,
     error,
     setError,
+    settings,
+    addToFileHistory,
   } = useAppStore()
 
   const [isKeyModalOpen, setIsKeyModalOpen] = useState(false)
@@ -37,6 +39,8 @@ export default function Home() {
     try {
       const doc = await extractTextFromPDF(file)
       setRulesPdf(doc)
+      // Add file name to history
+      addToFileHistory('rules_pdf', file.name)
     } catch (error) {
       setError('Failed to parse rules PDF')
       console.error(error)
@@ -51,6 +55,8 @@ export default function Home() {
     try {
       const doc = await extractTextFromPDF(file)
       setModulePdf(doc)
+      // Add file name to history
+      addToFileHistory('module_pdf', file.name)
     } catch (error) {
       setError('Failed to parse module PDF')
       console.error(error)
@@ -66,6 +72,8 @@ export default function Home() {
       const text = await file.text()
       const parsed = parseJournal(text)
       setJournal(parsed)
+      // Add file name to history
+      addToFileHistory('journal_file', file.name)
     } catch (error) {
       setError('Failed to parse journal file')
       console.error(error)
@@ -128,17 +136,45 @@ export default function Home() {
           {/* PDFs */}
           <div>
             <label className="mb-2 block text-sm font-medium">Upload materials</label>
-            <div className="space-y-2">
-              <PdfUpload
-                label="Rules PDF"
-                onUpload={handleRulesUpload}
-                isUploaded={!!rulesPdf}
-              />
-              <PdfUpload
-                label="Module PDF"
-                onUpload={handleModuleUpload}
-                isUploaded={!!modulePdf}
-              />
+            <div className="space-y-4">
+              <div>
+                <PdfUpload
+                  label="Rules PDF"
+                  onUpload={handleRulesUpload}
+                  isUploaded={!!rulesPdf}
+                />
+                {settings.rules_pdf_history.length > 0 && (
+                  <div className="mt-2 text-xs text-text-muted">
+                    <div className="mb-1">Recent files:</div>
+                    <ul className="ml-4 list-disc space-y-1">
+                      {settings.rules_pdf_history.map((path, idx) => (
+                        <li key={idx} className={idx === 0 ? 'font-semibold' : ''}>
+                          {path}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+              <div>
+                <PdfUpload
+                  label="Module PDF"
+                  onUpload={handleModuleUpload}
+                  isUploaded={!!modulePdf}
+                />
+                {settings.module_pdf_history.length > 0 && (
+                  <div className="mt-2 text-xs text-text-muted">
+                    <div className="mb-1">Recent files:</div>
+                    <ul className="ml-4 list-disc space-y-1">
+                      {settings.module_pdf_history.map((path, idx) => (
+                        <li key={idx} className={idx === 0 ? 'font-semibold' : ''}>
+                          {path}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -175,6 +211,18 @@ export default function Home() {
                     Or skip to start fresh with character creation
                   </p>
                 </>
+              )}
+              {settings.journal_file_history.length > 0 && (
+                <div className="mt-2 text-xs text-text-muted">
+                  <div className="mb-1">Recent files:</div>
+                  <ul className="ml-4 list-disc space-y-1">
+                    {settings.journal_file_history.map((path, idx) => (
+                      <li key={idx} className={idx === 0 ? 'font-semibold' : ''}>
+                        {path}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </div>
           </div>

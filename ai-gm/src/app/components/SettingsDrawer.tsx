@@ -130,6 +130,22 @@ export default function SettingsDrawer() {
                   placeholder="/path/to/rules.pdf"
                   className="input w-full font-mono text-sm"
                 />
+                {settings.rules_pdf_history.length > 0 && (
+                  <div className="mt-2">
+                    <div className="mb-1 text-xs text-text-muted">Recent files:</div>
+                    <div className="flex flex-wrap gap-1">
+                      {settings.rules_pdf_history.map((path, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => updateSettings({ rules_pdf_path: path })}
+                          className="rounded bg-background-lighter px-2 py-1 text-xs hover:bg-primary/20 hover:text-primary"
+                        >
+                          {path}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <p className="mt-1 text-xs text-text-muted">
                   Auto-load rules from this path when starting a session
                 </p>
@@ -145,6 +161,22 @@ export default function SettingsDrawer() {
                   placeholder="/path/to/module.pdf"
                   className="input w-full font-mono text-sm"
                 />
+                {settings.module_pdf_history.length > 0 && (
+                  <div className="mt-2">
+                    <div className="mb-1 text-xs text-text-muted">Recent files:</div>
+                    <div className="flex flex-wrap gap-1">
+                      {settings.module_pdf_history.map((path, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => updateSettings({ module_pdf_path: path })}
+                          className="rounded bg-background-lighter px-2 py-1 text-xs hover:bg-primary/20 hover:text-primary"
+                        >
+                          {path}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <p className="mt-1 text-xs text-text-muted">
                   Auto-load module from this path when starting a session
                 </p>
