@@ -72,7 +72,10 @@ export default function SettingsDrawer() {
                   max="2"
                   step="0.1"
                   value={settings.temperature}
-                  onChange={(e) => updateSettings({ temperature: parseFloat(e.target.value) })}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value)
+                    updateSettings({ temperature: isNaN(value) ? 1 : value })
+                  }}
                   className="input w-full"
                 />
                 <p className="mt-1 text-xs text-text-muted">
