@@ -58,6 +58,90 @@ export default function SettingsDrawer() {
               <option value="gpt-4-turbo">GPT-4 Turbo</option>
             </select>
           </section>
+
+          <section>
+            <h3 className="mb-3 text-lg font-semibold">LLM Configuration</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-sm text-text-muted">
+                  Temperature (0-2)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={settings.temperature}
+                  onChange={(e) => {
+                    const value = parseFloat(e.target.value)
+                    updateSettings({ temperature: isNaN(value) ? 1 : value })
+                  }}
+                  className="input w-full"
+                />
+                <p className="mt-1 text-xs text-text-muted">
+                  Higher values make output more random, lower values more focused
+                </p>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-text-muted">
+                  Max Output Tokens (optional)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="16000"
+                  step="100"
+                  value={settings.max_tokens ?? ''}
+                  onChange={(e) =>
+                    updateSettings({
+                      max_tokens: e.target.value ? parseInt(e.target.value) : undefined
+                    })
+                  }
+                  placeholder="Default (model-specific)"
+                  className="input w-full"
+                />
+                <p className="mt-1 text-xs text-text-muted">
+                  Limits the length of GM responses
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h3 className="mb-3 text-lg font-semibold">Document Paths</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-sm text-text-muted">
+                  Rules PDF Path (optional)
+                </label>
+                <input
+                  type="text"
+                  value={settings.rules_pdf_path ?? ''}
+                  onChange={(e) => updateSettings({ rules_pdf_path: e.target.value || undefined })}
+                  placeholder="/path/to/rules.pdf"
+                  className="input w-full font-mono text-sm"
+                />
+                <p className="mt-1 text-xs text-text-muted">
+                  Auto-load rules from this path when starting a session
+                </p>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm text-text-muted">
+                  Module PDF Path (optional)
+                </label>
+                <input
+                  type="text"
+                  value={settings.module_pdf_path ?? ''}
+                  onChange={(e) => updateSettings({ module_pdf_path: e.target.value || undefined })}
+                  placeholder="/path/to/module.pdf"
+                  className="input w-full font-mono text-sm"
+                />
+                <p className="mt-1 text-xs text-text-muted">
+                  Auto-load module from this path when starting a session
+                </p>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
     </>

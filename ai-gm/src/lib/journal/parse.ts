@@ -1,5 +1,5 @@
 import * as yaml from 'js-yaml'
-import { JournalFrontMatterSchema, type JournalFrontMatter } from '@/app/state/schema'
+import { JournalFrontMatterSchema, type JournalFrontMatter, type Settings } from '@/app/state/schema'
 
 export interface ParsedJournal {
   frontMatter: JournalFrontMatter
@@ -70,7 +70,7 @@ function extractSection(content: string, sectionName: string): string | string[]
  */
 export function createDefaultJournal(
   system: 'BX' | 'OSE',
-  settings: { ability_scores_4d6L: boolean; level1_max_hp: boolean }
+  settings: Settings
 ): ParsedJournal {
   const now = new Date().toISOString()
 
@@ -82,6 +82,8 @@ export function createDefaultJournal(
       ability_scores_4d6L: settings.ability_scores_4d6L,
       level1_max_hp: settings.level1_max_hp,
     },
+    rules_pdf_path: settings.rules_pdf_path,
+    module_pdf_path: settings.module_pdf_path,
     created_at: now,
     updated_at: now,
   }

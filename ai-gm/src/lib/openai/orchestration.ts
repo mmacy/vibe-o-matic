@@ -11,6 +11,12 @@ export interface GMRequest {
   rulesContext: string
   moduleContext: string
   model?: string
+  settings?: {
+    ability_scores_4d6L?: boolean
+    level1_max_hp?: boolean
+    temperature?: number
+    max_tokens?: number
+  }
 }
 
 export interface GMResponse {
@@ -29,14 +35,30 @@ export interface GMResponse {
 /**
  * Build system instructions for the GM
  */
-function buildSystemInstructions(rulesContext: string, moduleContext: string): string {
+function buildSystemInstructions(
+  rulesContext: string,
+  moduleContext: string,
+  settings?: { ability_scores_4d6L?: boolean; level1_max_hp?: boolean }
+): string {
+  let homebrewRules = ''
+
+  if (settings?.ability_scores_4d6L || settings?.level1_max_hp) {
+    homebrewRules = '\n\nHOMEBREW RULES (apply these in addition to the standard rules):\n'
+    if (settings.ability_scores_4d6L) {
+      homebrewRules += '- **Ability scores**: Use 4d6 drop lowest (4d6L) for each ability score when creating new characters.\n'
+    }
+    if (settings.level1_max_hp) {
+      homebrewRules += '- **Level 1 maximum HP**: All level 1 characters receive maximum hit points from their hit die (do not roll).\n'
+    }
+  }
+
   return `You are the Game Master for a B/X D&D-compatible tabletop RPG session.
 
 CRITICAL RULES:
 1. **Rule primacy**: You must ONLY use the rules and module provided. Never invent or assume rules from other systems.
 2. **Refusal policy**: If a player attempts an action not supported by the uploaded rules, refuse politely and include a brief excerpt from the rules (max 256 characters) explaining why.
 3. **Dice rolls**: ALL dice rolls MUST be performed using the roll_dice function tool. NEVER simulate, estimate, or make up dice results.
-4. **Character creation**: When a player creates a new character, guide them through character creation according to the rules PDF, then MUST call the create_character tool to add the character to the party. Include all required stats (name, class, level, HP, abilities, AC, etc.).
+4. **Character creation**: When a player creates a new character, guide them through character creation according to the rules PDF, then MUST call the create_character tool to add the character to the party. Include all required stats (name, class, level, HP, abilities, AC, etc.).${homebrewRules}
 
 RULES CONTEXT:
 ${rulesContext.substring(0, 4000)}
@@ -93,9 +115,9 @@ function executeToolCall(name: string, argumentsJson: string): string {
  * that may make multiple sequential tool calls
  */
 export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
-  const { client, messages, rulesContext, moduleContext, model = 'gpt-4o-2024-08-06' } = request
+  const { client, messages, rulesContext, moduleContext, model = 'gpt-4o-2024-08-06', settings } = request
 
-  const systemInstructions = buildSystemInstructions(rulesContext, moduleContext)
+  const systemInstructions = buildSystemInstructions(rulesContext, moduleContext, settings)
 
   // Build initial messages with system instructions
   const messagesWithSystem: ChatCompletionMessageParam[] = [
@@ -121,6 +143,8 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
       messages: currentMessages,
       tools: tools as OpenAI.Chat.Completions.ChatCompletionTool[],
       parallel_tool_calls: false, // Force sequential tool calls for determinism
+      ...(settings?.temperature !== undefined && { temperature: settings.temperature }),
+      ...(settings?.max_tokens !== undefined && { max_tokens: settings.max_tokens }),
     })
 
     const choice = response.choices[0]

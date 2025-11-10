@@ -30,6 +30,8 @@ export const JournalFrontMatterSchema = z.object({
     level1_max_hp: z.boolean().default(false),
   }),
   module_id: z.string().optional(),
+  rules_pdf_path: z.string().optional(),
+  module_pdf_path: z.string().optional(),
   created_at: z.string(),
   updated_at: z.string(),
 })
@@ -103,6 +105,10 @@ export const SettingsSchema = z.object({
   ability_scores_4d6L: z.boolean().default(false),
   level1_max_hp: z.boolean().default(false),
   model: z.string().default('gpt-4o-2024-08-06'),
+  temperature: z.number().min(0).max(2).default(1),
+  max_tokens: z.number().min(1).max(16000).optional(),
+  rules_pdf_path: z.string().optional(),
+  module_pdf_path: z.string().optional(),
 })
 
 export type Settings = z.infer<typeof SettingsSchema>

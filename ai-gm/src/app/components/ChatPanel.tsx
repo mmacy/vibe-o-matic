@@ -73,6 +73,7 @@ export default function ChatPanel() {
         rulesContext: rulesPdf.fullText,
         moduleContext: modulePdf.fullText,
         model: settings.model,
+        settings,
       })
 
       const assistantMessage = {
