@@ -191,14 +191,21 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
   while (iterations < MAX_ITERATIONS) {
     iterations++
 
+    // Determine which token parameter to use based on model
+    // GPT-5 models require max_completion_tokens and don't support temperature
+    // GPT-4 models use max_tokens and support temperature
+    const isGPT5Model = model.toLowerCase().includes('gpt-5')
+    const tokenParam = isGPT5Model ? 'max_completion_tokens' : 'max_tokens'
+
     // API call with tools enabled
     const response = await client.chat.completions.create({
       model,
       messages: currentMessages,
       tools: tools as OpenAI.Chat.Completions.ChatCompletionTool[],
       parallel_tool_calls: false, // Force sequential tool calls for determinism
-      ...(settings?.temperature !== undefined && { temperature: settings.temperature }),
-      ...(settings?.max_tokens !== undefined && { max_tokens: settings.max_tokens }),
+      // GPT-5 models don't support temperature parameter
+      ...(!isGPT5Model && settings?.temperature !== undefined && { temperature: settings.temperature }),
+      ...(settings?.max_tokens !== undefined && { [tokenParam]: settings.max_tokens }),
     })
 
     const choice = response.choices[0]
