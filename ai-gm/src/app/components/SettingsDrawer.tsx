@@ -42,6 +42,15 @@ export default function SettingsDrawer() {
                 />
                 <span>{formatLabel('level1_max_hp')}</span>
               </label>
+              <label className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={settings.ascending_ac}
+                  onChange={(e) => updateSettings({ ascending_ac: e.target.checked })}
+                  className="h-4 w-4 rounded border-slate-700 bg-background text-primary focus:ring-2 focus:ring-primary"
+                />
+                <span>{formatLabel('ascending_ac')}</span>
+              </label>
             </div>
           </section>
 
