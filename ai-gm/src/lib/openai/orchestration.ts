@@ -19,6 +19,7 @@ export interface GMRequest {
     temperature?: number
     max_tokens?: number
   }
+  onStreamChunk?: (chunk: string) => void
 }
 
 export interface GMResponse {
@@ -167,9 +168,10 @@ function executeToolCall(name: string, argumentsJson: string): string {
  * Main orchestration function for GM responses
  * Handles tool calls via round-trip pattern with support for reasoning models
  * that may make multiple sequential tool calls
+ * Supports streaming responses when onStreamChunk callback is provided
  */
 export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
-  const { client, messages, rulesContext, moduleContext, journal, model = 'gpt-4o-2024-08-06', settings } = request
+  const { client, messages, rulesContext, moduleContext, journal, model = 'gpt-4o-2024-08-06', settings, onStreamChunk } = request
 
   const systemInstructions = buildSystemInstructions(rulesContext, moduleContext, journal, settings)
 
@@ -197,7 +199,7 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
     const isGPT5Model = model.toLowerCase().includes('gpt-5')
     const tokenParam = isGPT5Model ? 'max_completion_tokens' : 'max_tokens'
 
-    // API call with tools enabled
+    // API call with tools enabled and optional streaming
     const response = await client.chat.completions.create({
       model,
       messages: currentMessages,
@@ -206,7 +208,139 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
       // GPT-5 models don't support temperature parameter
       ...(!isGPT5Model && settings?.temperature !== undefined && { temperature: settings.temperature }),
       ...(settings?.max_tokens !== undefined && { [tokenParam]: settings.max_tokens }),
+      // Enable streaming if callback is provided
+      stream: !!onStreamChunk,
     })
+
+    // Handle streaming response
+    if (onStreamChunk && Symbol.asyncIterator in response) {
+      let accumulatedContent = ''
+      let accumulatedToolCalls: Array<{
+        id: string
+        type: 'function'
+        function: {
+          name: string
+          arguments: string
+        }
+      }> = []
+
+      for await (const chunk of response) {
+        const delta = chunk.choices[0]?.delta
+
+        if (!delta) continue
+
+        // Handle content streaming
+        if (delta.content) {
+          accumulatedContent += delta.content
+          onStreamChunk(delta.content)
+        }
+
+        // Handle tool calls in streaming mode
+        if (delta.tool_calls) {
+          for (const toolCall of delta.tool_calls) {
+            const index = toolCall.index
+
+            // Initialize tool call if needed
+            if (!accumulatedToolCalls[index]) {
+              accumulatedToolCalls[index] = {
+                id: toolCall.id || '',
+                type: 'function',
+                function: {
+                  name: toolCall.function?.name || '',
+                  arguments: '',
+                },
+              }
+            }
+
+            // Accumulate function arguments
+            if (toolCall.function?.arguments) {
+              accumulatedToolCalls[index].function.arguments += toolCall.function.arguments
+            }
+
+            // Update function name if provided
+            if (toolCall.function?.name) {
+              accumulatedToolCalls[index].function.name = toolCall.function.name
+            }
+
+            // Update tool call ID if provided
+            if (toolCall.id) {
+              accumulatedToolCalls[index].id = toolCall.id
+            }
+          }
+        }
+      }
+
+      // Add assistant's message to conversation history
+      const assistantMessage: ChatCompletionMessageParam = {
+        role: 'assistant',
+        content: accumulatedContent || null,
+      }
+
+      // Add tool calls if present
+      if (accumulatedToolCalls.length > 0) {
+        assistantMessage.tool_calls = accumulatedToolCalls
+      }
+
+      currentMessages.push(assistantMessage)
+
+      // Check for tool calls
+      if (accumulatedToolCalls.length > 0) {
+        // Execute tool calls
+        for (const toolCall of accumulatedToolCalls) {
+          const result = executeToolCall(toolCall.function.name, toolCall.function.arguments)
+
+          // Parse the result to add to dice audit or character list
+          try {
+            const resultObj = JSON.parse(result)
+            const argsObj = JSON.parse(toolCall.function.arguments)
+
+            if (!resultObj.error) {
+              // Handle dice rolls
+              if (toolCall.function.name === 'roll_dice') {
+                diceAudit.push({
+                  source: argsObj.source || 'Unknown',
+                  action: argsObj.action || 'roll',
+                  target: argsObj.target,
+                  total: resultObj.total,
+                  expr: resultObj.normalized_expr || argsObj.expr,
+                })
+              }
+
+              // Handle character creation
+              if (toolCall.function.name === 'create_character' && resultObj.character) {
+                createdCharacters.push(resultObj.character)
+              }
+            }
+          } catch {
+            // Ignore parse errors for audit
+          }
+
+          // Add tool result to messages
+          currentMessages.push({
+            role: 'tool',
+            tool_call_id: toolCall.id,
+            content: result,
+          })
+        }
+
+        // Continue loop to let model process tool results and potentially make more calls
+        continue
+      }
+
+      // No tool calls - we have a final response
+      return {
+        text: accumulatedContent,
+        diceAudit,
+        createdCharacters,
+        fullMessages: currentMessages,
+      }
+    }
+
+    // Non-streaming response (original behavior)
+    // Type guard: if we reach here and it's still an async iterator, something went wrong
+    if (Symbol.asyncIterator in response) {
+      throw new Error('Expected non-streaming response but got streaming response')
+    }
 
     const choice = response.choices[0]
     if (!choice) {

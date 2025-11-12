@@ -67,7 +67,18 @@ export default function ChatPanel() {
         content: userMessage.content,
       })
 
-      // Get GM response
+      // Create a temporary streaming message
+      const streamingMessageId = nanoid()
+      const streamingMessage = {
+        id: streamingMessageId,
+        role: 'assistant' as const,
+        content: '',
+        timestamp: new Date().toISOString(),
+      }
+
+      addMessage(streamingMessage)
+
+      // Get GM response with streaming
       const response = await getGMResponse({
         client,
         messages: apiMessages,
@@ -76,23 +87,32 @@ export default function ChatPanel() {
         journal,
         model: settings.model,
         settings,
+        onStreamChunk: (chunk: string) => {
+          // Update the streaming message with each chunk
+          useAppStore.setState((state) => ({
+            messages: state.messages.map((msg) =>
+              msg.id === streamingMessageId
+                ? { ...msg, content: msg.content + chunk }
+                : msg
+            ),
+          }))
+        },
       })
 
-      const assistantMessage = {
-        id: nanoid(),
-        role: 'assistant' as const,
-        content: response.text,
-        timestamp: new Date().toISOString(),
-        dice_audit: response.diceAudit,
-      }
-
-      addMessage(assistantMessage)
+      // Update the final message with dice audit
+      useAppStore.setState((state) => ({
+        messages: state.messages.map((msg) =>
+          msg.id === streamingMessageId
+            ? { ...msg, dice_audit: response.diceAudit }
+            : msg
+        ),
+      }))
 
       // Add interaction to journal cache for later AI summarization
       addToJournalCache({
         userMessage: userMessage.content,
         gmResponse: response.text,
-        timestamp: assistantMessage.timestamp,
+        timestamp: streamingMessage.timestamp,
         diceAudit: response.diceAudit,
         createdCharacters: response.createdCharacters,
       })
