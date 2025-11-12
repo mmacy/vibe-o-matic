@@ -81,6 +81,7 @@ export function createDefaultJournal(
     flags: {
       ability_scores_4d6L: settings.ability_scores_4d6L,
       level1_max_hp: settings.level1_max_hp,
+      ascending_ac: settings.ascending_ac,
     },
     rules_pdf_path: settings.rules_pdf_path,
     module_pdf_path: settings.module_pdf_path,

@@ -64,6 +64,7 @@ export const useAppStore = create<AppState>()(
       settings: {
         ability_scores_4d6L: false,
         level1_max_hp: false,
+        ascending_ac: false,
         model: 'gpt-4o-2024-08-06',
         temperature: 1,
         max_tokens: undefined,

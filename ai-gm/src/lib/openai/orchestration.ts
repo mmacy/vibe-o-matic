@@ -16,6 +16,7 @@ export interface GMRequest {
   settings?: {
     ability_scores_4d6L?: boolean
     level1_max_hp?: boolean
+    ascending_ac?: boolean
     temperature?: number
     max_tokens?: number
   }
@@ -42,17 +43,20 @@ function buildSystemInstructions(
   rulesContext: string,
   moduleContext: string,
   journal?: ParsedJournal | null,
-  settings?: { ability_scores_4d6L?: boolean; level1_max_hp?: boolean }
+  settings?: { ability_scores_4d6L?: boolean; level1_max_hp?: boolean; ascending_ac?: boolean }
 ): string {
   let homebrewRules = ''
 
-  if (settings?.ability_scores_4d6L || settings?.level1_max_hp) {
+  if (settings?.ability_scores_4d6L || settings?.level1_max_hp || settings?.ascending_ac) {
     homebrewRules = '\n\nHOMEBREW RULES (apply these in addition to the standard rules):\n'
     if (settings.ability_scores_4d6L) {
       homebrewRules += '- **Ability scores**: Use 4d6 drop lowest (4d6L) for each ability score when creating new characters.\n'
     }
     if (settings.level1_max_hp) {
       homebrewRules += '- **Level 1 maximum HP**: All level 1 characters receive maximum hit points from their hit die (do not roll).\n'
+    }
+    if (settings.ascending_ac) {
+      homebrewRules += '- **Ascending Armor Class**: Use ascending armor class where higher AC is better (instead of descending AC where lower is better).\n'
     }
   }
 

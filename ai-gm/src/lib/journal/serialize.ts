@@ -75,6 +75,9 @@ export function serializeJournal(journal: ParsedJournal): string {
     if (journal.frontMatter.flags.level1_max_hp) {
       rules.push('- Level 1: maximum HP')
     }
+    if (journal.frontMatter.flags.ascending_ac) {
+      rules.push('- Ascending armor class')
+    }
     if (rules.length > 0) {
       sections.push(...rules)
     } else {
