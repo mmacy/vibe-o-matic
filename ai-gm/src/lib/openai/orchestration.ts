@@ -67,7 +67,7 @@ function buildSystemInstructions(
       journal.frontMatter.party.forEach((character) => {
         journalContext += `- **${character.name}** (${character.class}, Level ${character.level})\n`
         journalContext += `  - HP: ${character.hp}/${character.max_hp}\n`
-        journalContext += `  - AC: ${character.ac}, THAC0: ${character.thac0 || 'N/A'}, XP: ${character.xp}\n`
+        journalContext += `  - AC: ${character.ac}, THAC0: ${character.thac0 ?? 'N/A'}, XP: ${character.xp ?? 0}\n`
         journalContext += `  - Abilities: STR ${character.abilities.str}, INT ${character.abilities.int}, WIS ${character.abilities.wis}, DEX ${character.abilities.dex}, CON ${character.abilities.con}, CHA ${character.abilities.cha}\n`
         if (character.inventory && character.inventory.length > 0) {
           journalContext += `  - Inventory: ${character.inventory.join(', ')}\n`
