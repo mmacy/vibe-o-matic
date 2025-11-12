@@ -5,6 +5,7 @@ import { nanoid } from 'nanoid'
 import { createClient } from '@/lib/openai/client'
 import { getGMResponse } from '@/lib/openai/orchestration'
 import { updateParty } from '@/lib/journal/serialize'
+import { normalizeCharacterForJournal } from '@/app/state/schema'
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
 import ReactMarkdown from 'react-markdown'
 
@@ -103,17 +104,19 @@ export default function ChatPanel() {
           const newParty = [...currentParty]
 
           // Merge characters: update existing or add new
+          // Normalize characters to convert nullable fields to defaults for journal persistence
           for (const character of response.createdCharacters) {
+            const normalized = normalizeCharacterForJournal(character)
             const existingIndex = newParty.findIndex(
-              (c) => c.name.toLowerCase() === character.name.toLowerCase()
+              (c) => c.name.toLowerCase() === normalized.name.toLowerCase()
             )
 
             if (existingIndex >= 0) {
               // Update existing character
-              newParty[existingIndex] = character
+              newParty[existingIndex] = normalized
             } else {
               // Add new character
-              newParty.push(character)
+              newParty.push(normalized)
             }
           }
 

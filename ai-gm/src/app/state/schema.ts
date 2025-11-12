@@ -79,6 +79,28 @@ export const CreateCharacterInputSchema = z.object({
 
 export type CreateCharacterInput = z.infer<typeof CreateCharacterInputSchema>
 
+/**
+ * Normalize a CreateCharacterInput (from API with nullable fields) to a party member
+ * (for journal persistence with default values). This prevents journal validation
+ * failures when characters with null inventory/xp are persisted and reloaded.
+ */
+export function normalizeCharacterForJournal(
+  character: CreateCharacterInput
+): JournalFrontMatter['party'][number] {
+  return {
+    name: character.name,
+    class: character.class,
+    level: character.level,
+    hp: character.hp,
+    max_hp: character.max_hp,
+    abilities: character.abilities,
+    inventory: character.inventory ?? [],
+    ac: character.ac,
+    thac0: character.thac0 ?? undefined,
+    xp: character.xp ?? 0,
+  }
+}
+
 // Chat message schema
 export const ChatMessageSchema = z.object({
   id: z.string(),
