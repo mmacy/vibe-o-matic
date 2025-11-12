@@ -79,14 +79,21 @@ ${formattedCache}
 
 Remember: Be concise and impactful. Focus on what actually happened. Write like a wise chronicler recording essential facts, not a novelist embellishing a tale.`
 
+  // Determine which token parameter to use based on model
+  // GPT-5 models require max_completion_tokens and don't support temperature
+  // GPT-4 models use max_tokens and support temperature
+  const isGPT5Model = model.toLowerCase().includes('gpt-5')
+  const tokenParam = isGPT5Model ? 'max_completion_tokens' : 'max_tokens'
+
   const response = await client.chat.completions.create({
     model,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    temperature: 0.5, // More controlled for concise, factual output
-    max_tokens: 600, // Enforces brevity
+    // GPT-5 models don't support temperature parameter
+    ...(!isGPT5Model && { temperature: 0.5 }), // More controlled for concise, factual output
+    [tokenParam]: 600, // Enforces brevity
   })
 
   const summary = response.choices[0]?.message?.content
