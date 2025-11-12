@@ -43,7 +43,7 @@ export const DiceRollInputSchema = z.object({
   expr: z.string().describe('Dice expression in format NdM[+/-K][L]'),
   source: z.string().describe('Actor or source of the roll'),
   action: z.string().describe('What the roll represents'),
-  target: z.string().optional().describe('Target of the action, if any'),
+  target: z.string().nullable().describe('Target of the action, if any'),
 })
 
 export type DiceRollInput = z.infer<typeof DiceRollInputSchema>
@@ -71,10 +71,10 @@ export const CreateCharacterInputSchema = z.object({
     con: z.number().describe('Constitution'),
     cha: z.number().describe('Charisma'),
   }).describe('Ability scores'),
-  inventory: z.array(z.string()).default([]).describe('Starting inventory items'),
+  inventory: z.array(z.string()).nullable().describe('Starting inventory items'),
   ac: z.number().describe('Armor class'),
-  thac0: z.number().optional().describe('To-hit AC 0 (optional)'),
-  xp: z.number().default(0).describe('Experience points'),
+  thac0: z.number().nullable().describe('To-hit AC 0 (optional)'),
+  xp: z.number().nullable().describe('Experience points'),
 })
 
 export type CreateCharacterInput = z.infer<typeof CreateCharacterInputSchema>
