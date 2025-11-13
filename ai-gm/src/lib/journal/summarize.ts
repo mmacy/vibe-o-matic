@@ -91,7 +91,9 @@ Remember: Be concise and impactful. Focus on what actually happened. Write like 
       model,
       input: `${systemPrompt}\n\n${userPrompt}`,
       max_completion_tokens: 600,
-      reasoning_effort: 'minimal', // Minimal reasoning for simple summarization
+      reasoning: {
+        effort: 'minimal', // Minimal reasoning for simple summarization
+      },
     })
 
     summary = response.output_text
