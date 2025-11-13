@@ -234,13 +234,16 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
       const response = await client.responses.create({
         model,
         input: formattedInput,
+        // TypeScript types expect flat structure, but runtime API requires nested structure with 'function' property
         tools: tools.map((tool) => ({
           type: 'function' as const,
-          name: tool.function.name,
-          parameters: (tool.function.parameters || {}) as Record<string, unknown>,
-          strict: tool.function.strict ?? null,
-          description: tool.function.description || null,
-        })),
+          function: {
+            name: tool.function.name,
+            ...(tool.function.description && { description: tool.function.description }),
+            parameters: tool.function.parameters || {},
+            ...(tool.function.strict !== undefined && tool.function.strict !== null && { strict: tool.function.strict }),
+          },
+        })) as any,
         ...(settings?.max_tokens !== undefined && { max_output_tokens: settings.max_tokens }),
         reasoning: {
           effort: 'medium', // Use medium effort for GM responses
