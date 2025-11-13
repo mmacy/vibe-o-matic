@@ -90,7 +90,7 @@ Remember: Be concise and impactful. Focus on what actually happened. Write like 
     const response = await client.responses.create({
       model,
       input: `${systemPrompt}\n\n${userPrompt}`,
-      max_completion_tokens: 600,
+      max_output_tokens: 600, // Enforces brevity
       reasoning: {
         effort: 'minimal', // Minimal reasoning for simple summarization
       },
