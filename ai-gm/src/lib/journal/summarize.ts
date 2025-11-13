@@ -79,39 +79,52 @@ ${formattedCache}
 
 Remember: Be concise and impactful. Focus on what actually happened. Write like a wise chronicler recording essential facts, not a novelist embellishing a tale.`
 
-  // Determine which token parameter to use based on model
-  // GPT-5 models require max_completion_tokens and don't support temperature
-  // GPT-4 models use max_tokens and support temperature
+  // Determine which API to use based on model
+  // GPT-5 models use the Responses API, GPT-4 models use Chat Completions API
   const isGPT5Model = model.toLowerCase().includes('gpt-5')
-  const tokenParam = isGPT5Model ? 'max_completion_tokens' : 'max_tokens'
 
-  const response = await client.chat.completions.create({
-    model,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    // GPT-5 models don't support temperature parameter
-    ...(!isGPT5Model ? { temperature: 0.5 } : {}), // More controlled for concise, factual output
-    // GPT-5 reasoning models benefit from minimal reasoning_effort for simple summarization
-    ...(isGPT5Model ? { reasoning_effort: 'minimal' } : {}),
-    [tokenParam]: 600, // Enforces brevity
-  })
+  let summary: string
 
-  // Extract content from response
-  const choice = response.choices?.[0]
-  if (!choice) {
-    throw new Error(`No choices in API response. Response: ${JSON.stringify(response)}`)
-  }
+  if (isGPT5Model) {
+    // Use Responses API for GPT-5 models
+    const response = await client.responses.create({
+      model,
+      input: `${systemPrompt}\n\n${userPrompt}`,
+      max_completion_tokens: 600,
+      reasoning_effort: 'minimal', // Minimal reasoning for simple summarization
+    })
 
-  const summary = choice.message?.content
-  if (!summary) {
-    // GPT-5 models may refuse or have empty content
-    const refusal = choice.message?.refusal
-    if (refusal) {
-      throw new Error(`Model refused to generate summary: ${refusal}`)
+    summary = response.output_text
+    if (!summary) {
+      throw new Error(`No output_text in Responses API response. Response: ${JSON.stringify(response)}`)
     }
-    throw new Error(`No content in response message. Choice: ${JSON.stringify(choice)}`)
+  } else {
+    // Use Chat Completions API for GPT-4 models
+    const response = await client.chat.completions.create({
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.5, // More controlled for concise, factual output
+      max_tokens: 600, // Enforces brevity
+    })
+
+    const choice = response.choices?.[0]
+    if (!choice) {
+      throw new Error(`No choices in Chat Completions API response. Response: ${JSON.stringify(response)}`)
+    }
+
+    const content = choice.message?.content
+    if (!content) {
+      const refusal = choice.message?.refusal
+      if (refusal) {
+        throw new Error(`Model refused to generate summary: ${refusal}`)
+      }
+      throw new Error(`No content in response message. Choice: ${JSON.stringify(choice)}`)
+    }
+
+    summary = content
   }
 
   return summary.trim()
