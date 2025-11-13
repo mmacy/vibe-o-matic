@@ -92,7 +92,7 @@ Remember: Be concise and impactful. Focus on what actually happened. Write like 
       input: `${systemPrompt}\n\n${userPrompt}`,
       max_output_tokens: 600, // Enforces brevity
       reasoning: {
-        effort: 'minimal', // Minimal reasoning for simple summarization
+        effort: 'low', // Minimal reasoning for simple summarization
       },
     })
 

@@ -197,11 +197,247 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
   while (iterations < MAX_ITERATIONS) {
     iterations++
 
-    // Determine which token parameter to use based on model
-    // GPT-5 models require max_completion_tokens and don't support temperature
-    // GPT-4 models use max_tokens and support temperature
+    // Determine which API to use based on model
+    // GPT-5 models use Responses API for extended reasoning capabilities
+    // GPT-4 models use Chat Completions API
     const isGPT5Model = model.toLowerCase().includes('gpt-5')
-    const tokenParam = isGPT5Model ? 'max_completion_tokens' : 'max_tokens'
+
+    // For GPT-5 models, use the Responses API
+    if (isGPT5Model) {
+      // Format messages as a single string input for the Responses API
+      // The Responses API accepts a string or array of specific input items
+      // For simplicity with tool calls and conversation history, we format as a string
+      const formattedInput = currentMessages
+        .map((msg) => {
+          if (msg.role === 'system') {
+            return `System: ${typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)}`
+          }
+          if (msg.role === 'user') {
+            return `User: ${typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)}`
+          }
+          if (msg.role === 'assistant') {
+            let text = `Assistant: ${typeof msg.content === 'string' ? msg.content : ''}`
+            if ('tool_calls' in msg && msg.tool_calls) {
+              text += `\n[Tool calls: ${JSON.stringify(msg.tool_calls)}]`
+            }
+            return text
+          }
+          if (msg.role === 'tool') {
+            const toolMsg = msg as { tool_call_id: string; content: string | null }
+            return `Tool result (${toolMsg.tool_call_id}): ${toolMsg.content}`
+          }
+          return ''
+        })
+        .filter((m) => m)
+        .join('\n\n')
+
+      const response = await client.responses.create({
+        model,
+        input: formattedInput,
+        tools: tools.map((tool) => ({
+          type: 'function' as const,
+          name: tool.function.name,
+          parameters: (tool.function.parameters || {}) as Record<string, unknown>,
+          strict: tool.function.strict ?? null,
+          description: tool.function.description || null,
+        })),
+        ...(settings?.max_tokens !== undefined && { max_output_tokens: settings.max_tokens }),
+        reasoning: {
+          effort: 'medium', // Use medium effort for GM responses
+        },
+        parallel_tool_calls: false, // Force sequential tool calls for determinism
+        // Responses API supports streaming
+        stream: !!onStreamChunk,
+      })
+
+      // Handle Responses API streaming
+      if (onStreamChunk && Symbol.asyncIterator in response) {
+        let accumulatedText = ''
+        const accumulatedToolCalls: Array<{
+          id: string
+          type: 'function'
+          function: { name: string; arguments: string }
+        }> = []
+
+        for await (const event of response) {
+          // Handle text deltas
+          if ((event as any).type === 'response.output_text.delta') {
+            const delta = (event as any).delta
+            if (delta) {
+              accumulatedText += delta
+              onStreamChunk(delta)
+            }
+          }
+          // Handle complete output items
+          if ((event as any).type === 'response.output_item.done') {
+            const item = (event as any).item
+            if (item?.type === 'text') {
+              // Text already accumulated via deltas
+            }
+            // Handle tool calls
+            if (item?.type === 'function_call') {
+              accumulatedToolCalls.push({
+                id: item.id || `call_${Date.now()}`,
+                type: 'function',
+                function: {
+                  name: item.name || '',
+                  arguments: item.arguments || '',
+                },
+              })
+            }
+          }
+        }
+
+        // Build assistant message for conversation history
+        const assistantMessage: ChatCompletionMessageParam = {
+          role: 'assistant',
+          content: accumulatedText || null,
+        }
+        if (accumulatedToolCalls.length > 0) {
+          assistantMessage.tool_calls = accumulatedToolCalls
+        }
+        currentMessages.push(assistantMessage)
+
+        // Execute tool calls if present
+        if (accumulatedToolCalls.length > 0) {
+          for (const toolCall of accumulatedToolCalls) {
+            const result = executeToolCall(toolCall.function.name, toolCall.function.arguments)
+
+            // Parse the result for audit
+            try {
+              const resultObj = JSON.parse(result)
+              const argsObj = JSON.parse(toolCall.function.arguments)
+
+              if (!resultObj.error) {
+                if (toolCall.function.name === 'roll_dice') {
+                  diceAudit.push({
+                    source: argsObj.source || 'Unknown',
+                    action: argsObj.action || 'roll',
+                    target: argsObj.target,
+                    total: resultObj.total,
+                    expr: resultObj.normalized_expr || argsObj.expr,
+                  })
+                }
+                if (toolCall.function.name === 'create_character' && resultObj.character) {
+                  createdCharacters.push(resultObj.character)
+                }
+              }
+            } catch {
+              // Ignore parse errors
+            }
+
+            // Add tool result to messages
+            currentMessages.push({
+              role: 'tool',
+              tool_call_id: toolCall.id,
+              content: result,
+            })
+          }
+
+          // Continue loop for more tool calls
+          continue
+        }
+
+        // No tool calls - return final response
+        return {
+          text: accumulatedText,
+          diceAudit,
+          createdCharacters,
+          fullMessages: currentMessages,
+        }
+      }
+
+      // Non-streaming Responses API
+      if (Symbol.asyncIterator in response) {
+        throw new Error('Expected non-streaming response but got streaming response')
+      }
+
+      const output = (response as any).output || []
+      let text = (response as any).output_text || ''
+      const toolCalls: Array<{
+        id: string
+        type: 'function'
+        function: { name: string; arguments: string }
+      }> = []
+
+      // Parse output items
+      for (const item of output) {
+        if (item.type === 'text' && item.text) {
+          if (!text) text = item.text
+        }
+        if (item.type === 'function_call') {
+          toolCalls.push({
+            id: item.id || `call_${Date.now()}`,
+            type: 'function',
+            function: {
+              name: item.name || '',
+              arguments: item.arguments || '',
+            },
+          })
+        }
+      }
+
+      // Add assistant message to history
+      const assistantMessage: ChatCompletionMessageParam = {
+        role: 'assistant',
+        content: text || null,
+      }
+      if (toolCalls.length > 0) {
+        assistantMessage.tool_calls = toolCalls
+      }
+      currentMessages.push(assistantMessage)
+
+      // Execute tool calls if present
+      if (toolCalls.length > 0) {
+        for (const toolCall of toolCalls) {
+          const result = executeToolCall(toolCall.function.name, toolCall.function.arguments)
+
+          // Parse the result for audit
+          try {
+            const resultObj = JSON.parse(result)
+            const argsObj = JSON.parse(toolCall.function.arguments)
+
+            if (!resultObj.error) {
+              if (toolCall.function.name === 'roll_dice') {
+                diceAudit.push({
+                  source: argsObj.source || 'Unknown',
+                  action: argsObj.action || 'roll',
+                  target: argsObj.target,
+                  total: resultObj.total,
+                  expr: resultObj.normalized_expr || argsObj.expr,
+                })
+              }
+              if (toolCall.function.name === 'create_character' && resultObj.character) {
+                createdCharacters.push(resultObj.character)
+              }
+            }
+          } catch {
+            // Ignore parse errors
+          }
+
+          // Add tool result to messages
+          currentMessages.push({
+            role: 'tool',
+            tool_call_id: toolCall.id,
+            content: result,
+          })
+        }
+
+        // Continue loop for more tool calls
+        continue
+      }
+
+      // No tool calls - return final response
+      return {
+        text,
+        diceAudit,
+        createdCharacters,
+        fullMessages: currentMessages,
+      }
+    }
+
+    // For GPT-4 models, use the Chat Completions API (existing code)
+    const tokenParam = 'max_tokens'
 
     // API call with tools enabled and optional streaming
     const response = await client.chat.completions.create({
@@ -209,8 +445,7 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
       messages: currentMessages,
       tools: tools as OpenAI.Chat.Completions.ChatCompletionTool[],
       parallel_tool_calls: false, // Force sequential tool calls for determinism
-      // GPT-5 models don't support temperature parameter
-      ...(!isGPT5Model && settings?.temperature !== undefined && { temperature: settings.temperature }),
+      ...(settings?.temperature !== undefined && { temperature: settings.temperature }),
       ...(settings?.max_tokens !== undefined && { [tokenParam]: settings.max_tokens }),
       // Enable streaming if callback is provided
       stream: !!onStreamChunk,
