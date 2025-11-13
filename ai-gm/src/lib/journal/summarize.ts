@@ -96,9 +96,20 @@ Remember: Be concise and impactful. Focus on what actually happened. Write like 
     [tokenParam]: 600, // Enforces brevity
   })
 
-  const summary = response.choices[0]?.message?.content
+  // Extract content from response
+  const choice = response.choices?.[0]
+  if (!choice) {
+    throw new Error(`No choices in API response. Response: ${JSON.stringify(response)}`)
+  }
+
+  const summary = choice.message?.content
   if (!summary) {
-    throw new Error('Failed to generate journal summary')
+    // GPT-5 models may refuse or have empty content
+    const refusal = choice.message?.refusal
+    if (refusal) {
+      throw new Error(`Model refused to generate summary: ${refusal}`)
+    }
+    throw new Error(`No content in response message. Choice: ${JSON.stringify(choice)}`)
   }
 
   return summary.trim()
