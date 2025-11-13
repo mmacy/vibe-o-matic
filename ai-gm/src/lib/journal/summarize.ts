@@ -92,7 +92,7 @@ Remember: Be concise and impactful. Focus on what actually happened. Write like 
       { role: 'user', content: userPrompt },
     ],
     // GPT-5 models don't support temperature parameter
-    ...(!isGPT5Model && { temperature: 0.5 }), // More controlled for concise, factual output
+    ...(!isGPT5Model ? { temperature: 0.5 } : {}), // More controlled for concise, factual output
     [tokenParam]: 600, // Enforces brevity
   })
 
