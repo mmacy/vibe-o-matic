@@ -93,6 +93,8 @@ Remember: Be concise and impactful. Focus on what actually happened. Write like 
     ],
     // GPT-5 models don't support temperature parameter
     ...(!isGPT5Model ? { temperature: 0.5 } : {}), // More controlled for concise, factual output
+    // GPT-5 reasoning models benefit from minimal reasoning_effort for simple summarization
+    ...(isGPT5Model ? { reasoning_effort: 'minimal' } : {}),
     [tokenParam]: 600, // Enforces brevity
   })
 
