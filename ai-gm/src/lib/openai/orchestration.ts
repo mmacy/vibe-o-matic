@@ -256,11 +256,16 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
       // Handle Responses API streaming
       if (onStreamChunk && Symbol.asyncIterator in response) {
         let accumulatedText = ''
-        const accumulatedToolCalls: Array<{
-          id: string
-          type: 'function'
-          function: { name: string; arguments: string }
-        }> = []
+        // Track function calls by item_id to accumulate arguments
+        const functionCallsMap = new Map<
+          string,
+          {
+            id: string
+            type: 'function'
+            function: { name: string; arguments: string }
+            output_index: number
+          }
+        >()
 
         for await (const event of response) {
           // Handle text deltas
@@ -271,25 +276,54 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
               onStreamChunk(delta)
             }
           }
-          // Handle complete output items
-          if ((event as any).type === 'response.output_item.done') {
+
+          // Handle new output items (function calls, text, etc.)
+          if ((event as any).type === 'response.output_item.added') {
             const item = (event as any).item
-            if (item?.type === 'text') {
-              // Text already accumulated via deltas
-            }
-            // Handle tool calls
+            const outputIndex = (event as any).output_index
+
+            // Initialize function call tracking
             if (item?.type === 'function_call') {
-              accumulatedToolCalls.push({
+              functionCallsMap.set(item.id, {
                 id: item.id || `call_${Date.now()}`,
                 type: 'function',
                 function: {
                   name: item.name || '',
-                  arguments: item.arguments || '',
+                  arguments: '', // Will accumulate from delta events
                 },
+                output_index: outputIndex,
               })
             }
           }
+
+          // Handle function call arguments deltas (streaming incremental arguments)
+          if ((event as any).type === 'response.function_call_arguments.delta') {
+            const itemId = (event as any).item_id
+            const delta = (event as any).delta
+
+            const funcCall = functionCallsMap.get(itemId)
+            if (funcCall && delta) {
+              funcCall.function.arguments += delta
+            }
+          }
+
+          // Handle complete output items (optional - for validation)
+          if ((event as any).type === 'response.output_item.done') {
+            const item = (event as any).item
+            // Update function call name if it wasn't set during 'added' event
+            if (item?.type === 'function_call' && item.id) {
+              const funcCall = functionCallsMap.get(item.id)
+              if (funcCall && !funcCall.function.name && item.name) {
+                funcCall.function.name = item.name
+              }
+            }
+          }
         }
+
+        // Convert map to array, sorted by output_index
+        const accumulatedToolCalls = Array.from(functionCallsMap.values())
+          .sort((a, b) => a.output_index - b.output_index)
+          .map(({ id, type, function: func }) => ({ id, type, function: func }))
 
         // Build assistant message for conversation history
         const assistantMessage: ChatCompletionMessageParam = {
