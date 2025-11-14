@@ -403,12 +403,17 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
           if (!text) text = item.text
         }
         if (item.type === 'function_call') {
+          // Responses API returns arguments as an object, but executeToolCall expects a JSON string
+          const argumentsStr = typeof item.arguments === 'string'
+            ? item.arguments
+            : JSON.stringify(item.arguments || {})
+
           toolCalls.push({
             id: item.id || `call_${Date.now()}`,
             type: 'function',
             function: {
               name: item.name || '',
-              arguments: item.arguments || '',
+              arguments: argumentsStr,
             },
           })
         }
