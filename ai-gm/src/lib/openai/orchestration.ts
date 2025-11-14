@@ -169,6 +169,47 @@ function executeToolCall(name: string, argumentsJson: string): string {
 }
 
 /**
+ * Process a tool call result and update audit tracking
+ * Shared helper to avoid code duplication
+ */
+function processToolCallResult(
+  toolCall: { id: string; function: { name: string; arguments: string } },
+  diceAudit: GMResponse['diceAudit'],
+  createdCharacters: CreateCharacterInput[]
+): { role: 'tool'; tool_call_id: string; content: string } {
+  const result = executeToolCall(toolCall.function.name, toolCall.function.arguments)
+
+  // Update audit tracking
+  try {
+    const resultObj = JSON.parse(result)
+    const argsObj = JSON.parse(toolCall.function.arguments)
+
+    if (!resultObj.error) {
+      if (toolCall.function.name === 'roll_dice') {
+        diceAudit.push({
+          source: argsObj.source || 'Unknown',
+          action: argsObj.action || 'roll',
+          target: argsObj.target,
+          total: resultObj.total,
+          expr: resultObj.normalized_expr || argsObj.expr,
+        })
+      }
+      if (toolCall.function.name === 'create_character' && resultObj.character) {
+        createdCharacters.push(resultObj.character)
+      }
+    }
+  } catch {
+    // Ignore parse errors
+  }
+
+  return {
+    role: 'tool',
+    tool_call_id: toolCall.id,
+    content: result,
+  }
+}
+
+/**
  * Main orchestration function for GM responses
  * Handles tool calls via round-trip pattern with support for reasoning models
  * that may make multiple sequential tool calls
@@ -204,36 +245,11 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
 
     // For GPT-5 models, use the Responses API
     if (isGPT5Model) {
-      // Format messages as a single string input for the Responses API
-      // The Responses API accepts a string or array of specific input items
-      // For simplicity with tool calls and conversation history, we format as a string
-      const formattedInput = currentMessages
-        .map((msg) => {
-          if (msg.role === 'system') {
-            return `System: ${typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)}`
-          }
-          if (msg.role === 'user') {
-            return `User: ${typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)}`
-          }
-          if (msg.role === 'assistant') {
-            let text = `Assistant: ${typeof msg.content === 'string' ? msg.content : ''}`
-            if ('tool_calls' in msg && msg.tool_calls) {
-              text += `\n[Tool calls: ${JSON.stringify(msg.tool_calls)}]`
-            }
-            return text
-          }
-          if (msg.role === 'tool') {
-            const toolMsg = msg as { tool_call_id: string; content: string | null }
-            return `Tool result (${toolMsg.tool_call_id}): ${toolMsg.content}`
-          }
-          return ''
-        })
-        .filter((m) => m)
-        .join('\n\n')
-
+      // The Responses API supports structured message format similar to Chat Completions
+      // Pass messages directly - no need to stringify into a single text blob
       const response = await client.responses.create({
         model,
-        input: formattedInput,
+        input: currentMessages as any, // Responses API accepts message array
         // Responses API uses flat tool structure (different from Chat Completions API)
         tools: tools.map((tool) => ({
           type: 'function' as const,
@@ -336,37 +352,8 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
         // Execute tool calls if present
         if (accumulatedToolCalls.length > 0) {
           for (const toolCall of accumulatedToolCalls) {
-            const result = executeToolCall(toolCall.function.name, toolCall.function.arguments)
-
-            // Parse the result for audit
-            try {
-              const resultObj = JSON.parse(result)
-              const argsObj = JSON.parse(toolCall.function.arguments)
-
-              if (!resultObj.error) {
-                if (toolCall.function.name === 'roll_dice') {
-                  diceAudit.push({
-                    source: argsObj.source || 'Unknown',
-                    action: argsObj.action || 'roll',
-                    target: argsObj.target,
-                    total: resultObj.total,
-                    expr: resultObj.normalized_expr || argsObj.expr,
-                  })
-                }
-                if (toolCall.function.name === 'create_character' && resultObj.character) {
-                  createdCharacters.push(resultObj.character)
-                }
-              }
-            } catch {
-              // Ignore parse errors
-            }
-
-            // Add tool result to messages
-            currentMessages.push({
-              role: 'tool',
-              tool_call_id: toolCall.id,
-              content: result,
-            })
+            const toolResult = processToolCallResult(toolCall, diceAudit, createdCharacters)
+            currentMessages.push(toolResult)
           }
 
           // Continue loop for more tool calls
@@ -430,37 +417,8 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
       // Execute tool calls if present
       if (toolCalls.length > 0) {
         for (const toolCall of toolCalls) {
-          const result = executeToolCall(toolCall.function.name, toolCall.function.arguments)
-
-          // Parse the result for audit
-          try {
-            const resultObj = JSON.parse(result)
-            const argsObj = JSON.parse(toolCall.function.arguments)
-
-            if (!resultObj.error) {
-              if (toolCall.function.name === 'roll_dice') {
-                diceAudit.push({
-                  source: argsObj.source || 'Unknown',
-                  action: argsObj.action || 'roll',
-                  target: argsObj.target,
-                  total: resultObj.total,
-                  expr: resultObj.normalized_expr || argsObj.expr,
-                })
-              }
-              if (toolCall.function.name === 'create_character' && resultObj.character) {
-                createdCharacters.push(resultObj.character)
-              }
-            }
-          } catch {
-            // Ignore parse errors
-          }
-
-          // Add tool result to messages
-          currentMessages.push({
-            role: 'tool',
-            tool_call_id: toolCall.id,
-            content: result,
-          })
+          const toolResult = processToolCallResult(toolCall, diceAudit, createdCharacters)
+          currentMessages.push(toolResult)
         }
 
         // Continue loop for more tool calls
@@ -564,42 +522,10 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
 
       // Check for tool calls
       if (accumulatedToolCalls.length > 0) {
-        // Execute tool calls
+        // Execute tool calls and add results to messages
         for (const toolCall of accumulatedToolCalls) {
-          const result = executeToolCall(toolCall.function.name, toolCall.function.arguments)
-
-          // Parse the result to add to dice audit or character list
-          try {
-            const resultObj = JSON.parse(result)
-            const argsObj = JSON.parse(toolCall.function.arguments)
-
-            if (!resultObj.error) {
-              // Handle dice rolls
-              if (toolCall.function.name === 'roll_dice') {
-                diceAudit.push({
-                  source: argsObj.source || 'Unknown',
-                  action: argsObj.action || 'roll',
-                  target: argsObj.target,
-                  total: resultObj.total,
-                  expr: resultObj.normalized_expr || argsObj.expr,
-                })
-              }
-
-              // Handle character creation
-              if (toolCall.function.name === 'create_character' && resultObj.character) {
-                createdCharacters.push(resultObj.character)
-              }
-            }
-          } catch {
-            // Ignore parse errors for audit
-          }
-
-          // Add tool result to messages
-          currentMessages.push({
-            role: 'tool',
-            tool_call_id: toolCall.id,
-            content: result,
-          })
+          const toolResult = processToolCallResult(toolCall, diceAudit, createdCharacters)
+          currentMessages.push(toolResult)
         }
 
         // Continue loop to let model process tool results and potentially make more calls
@@ -633,42 +559,10 @@ export async function getGMResponse(request: GMRequest): Promise<GMResponse> {
 
     // Check for tool calls
     if (choice.message.tool_calls && choice.message.tool_calls.length > 0) {
-      // Execute tool calls
+      // Execute tool calls and add results to messages
       for (const toolCall of choice.message.tool_calls) {
-        const result = executeToolCall(toolCall.function.name, toolCall.function.arguments)
-
-        // Parse the result to add to dice audit or character list
-        try {
-          const resultObj = JSON.parse(result)
-          const argsObj = JSON.parse(toolCall.function.arguments)
-
-          if (!resultObj.error) {
-            // Handle dice rolls
-            if (toolCall.function.name === 'roll_dice') {
-              diceAudit.push({
-                source: argsObj.source || 'Unknown',
-                action: argsObj.action || 'roll',
-                target: argsObj.target,
-                total: resultObj.total,
-                expr: resultObj.normalized_expr || argsObj.expr,
-              })
-            }
-
-            // Handle character creation
-            if (toolCall.function.name === 'create_character' && resultObj.character) {
-              createdCharacters.push(resultObj.character)
-            }
-          }
-        } catch {
-          // Ignore parse errors for audit
-        }
-
-        // Add tool result to messages
-        currentMessages.push({
-          role: 'tool',
-          tool_call_id: toolCall.id,
-          content: result,
-        })
+        const toolResult = processToolCallResult(toolCall, diceAudit, createdCharacters)
+        currentMessages.push(toolResult)
       }
 
       // Continue loop to let model process tool results and potentially make more calls
