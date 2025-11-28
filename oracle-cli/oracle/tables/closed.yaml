@@ -1,0 +1,32 @@
+# Derived from the "Oracle" table on page 13.
+rows:
+  1:
+    answer: "No"
+    detail: "and..."
+    scenario: "Worst case scenario"
+    tone: "Unfortunately"
+  2:
+    answer: "No"
+    detail: null
+    scenario: "Worse outcome"
+    tone: "Unfortunately"
+  3:
+    answer: "No"
+    detail: "because..."
+    scenario: "Bad outcome"
+    tone: "Unfortunately"
+  4:
+    answer: "Yes"
+    detail: "but..."
+    scenario: "Good outcome"
+    tone: "Fortunately"
+  5:
+    answer: "Yes"
+    detail: null
+    scenario: "Better outcome"
+    tone: "Fortunately"
+  6:
+    answer: "Yes"
+    detail: "and..."
+    scenario: "Best case scenario"
+    tone: "Fortunately"

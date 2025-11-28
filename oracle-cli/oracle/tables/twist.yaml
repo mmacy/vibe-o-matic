@@ -1,0 +1,16 @@
+# Derived from the "Plot Twist" table on page 24.
+subject:
+  1: "An NPC"
+  2: "Your PC"
+  3: "An organization"
+  4: "A physical event"
+  5: "An emotional event"
+  6: "An item"
+
+action:
+  1: "appears."
+  2: "alters the location."
+  3: "helps the hero."
+  4: "hinders the hero."
+  5: "changes the goal."
+  6: "ends the scene."

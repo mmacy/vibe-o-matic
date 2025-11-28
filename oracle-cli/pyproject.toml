@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "oracle-cli"
+version = "0.1.0"
+description = "Old-School Solo Oracle CLI"
+requires-python = ">=3.13"
+dependencies = [
+    "typer>=0.12.0",
+    "rich>=13.0.0",
+    "pyyaml>=6.0.0",
+]
+
+[project.scripts]
+oracle = "oracle.cli:app"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
+# CRITICAL: Include YAML files in the build
+[tool.hatch.build.targets.wheel]
+packages = ["oracle"]
+
+[tool.hatch.build.targets.sdist]
+include = ["oracle/tables/*.yaml"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"oracle/tables" = "oracle/tables"
