@@ -10,18 +10,18 @@ This package provides the stateless oracle logic that powers the Oracle CLI, exp
 - `oracle.core.chaos.roll_chaos`: Rolls chaos dice and reports how the pool escalates or resets.
 - `oracle.util.OracleRNG`: Wraps `random.Random` to deliver deterministic dice rolls across the oracles.
 
-## Installing
+## Install
 
-Install the package locally while in the repository root:
+Install the package locally while in the repository root using `uv`:
 
 ```bash
-pip install .
+uv tool install .
 ```
 
 To develop against the project without installing globally, use editable mode:
 
 ```bash
-pip install -e .
+uv tool install --editable .
 ```
 
 ## Using the oracles programmatically
