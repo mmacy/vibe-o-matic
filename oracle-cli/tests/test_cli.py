@@ -128,7 +128,7 @@ def test_muse_command_invalid_theme():
     """Test muse command with invalid theme."""
     result = runner.invoke(app, ["muse", "-t", "InvalidTheme", "-c", "1"])
     assert result.exit_code != 0
-    assert "InvalidTheme" in result.stdout
+    assert "InvalidTheme" in result.stderr
 
 
 def test_twist_command_text_output():

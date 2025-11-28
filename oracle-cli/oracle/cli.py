@@ -43,7 +43,7 @@ def closed(
         Optional[int],
         typer.Option("--seed", "-s", help="Random seed for deterministic output"),
     ] = None,
-    format: Annotated[
+    output_format: Annotated[
         OutputFormat,
         typer.Option("--format", "-f", help="Output format"),
     ] = OutputFormat.TEXT,
@@ -52,7 +52,7 @@ def closed(
     rng = OracleRNG(seed)
     result = ask_closed(question, likelihood, rng)
 
-    if format == OutputFormat.JSON:
+    if output_format == OutputFormat.JSON:
         print(json.dumps(asdict(result), indent=2))
     else:
         # Text output with Rich formatting
@@ -68,8 +68,8 @@ def closed(
         console.print(
             f"[dim]Roll: {result.roll.base} + {result.roll.modifier} = {result.roll.final}[/]"
         )
-        console.print(f"[dim]{result.result.scenario}[/]")
-        console.print(f"[dim]{result.result.tone}[/]")
+        console.print(f"[dim]Scenario: {result.result.scenario}[/]")
+        console.print(f"[dim]Tone: {result.result.tone}[/]")
 
 
 @app.command()
@@ -83,14 +83,14 @@ def muse(
         Optional[int],
         typer.Option("--seed", "-s", help="Random seed for deterministic output"),
     ] = None,
-    format: Annotated[
+    output_format: Annotated[
         OutputFormat,
         typer.Option("--format", "-f", help="Output format"),
     ] = OutputFormat.TEXT,
 ):
     """Get inspiration words from theme tables."""
     if not theme:
-        console.print("[red]Error: At least one --theme is required[/]")
+        typer.echo("Error: At least one --theme is required", err=True)
         raise typer.Exit(1)
 
     rng = OracleRNG(seed)
@@ -98,10 +98,10 @@ def muse(
     try:
         result = ask_muse(theme, count, rng)
     except KeyError as e:
-        console.print(f"[red]Error: {e}[/]")
+        typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
 
-    if format == OutputFormat.JSON:
+    if output_format == OutputFormat.JSON:
         print(json.dumps(asdict(result), indent=2))
     else:
         # Text output with Rich formatting
@@ -115,7 +115,7 @@ def twist(
         Optional[int],
         typer.Option("--seed", "-s", help="Random seed for deterministic output"),
     ] = None,
-    format: Annotated[
+    output_format: Annotated[
         OutputFormat,
         typer.Option("--format", "-f", help="Output format"),
     ] = OutputFormat.TEXT,
@@ -124,7 +124,7 @@ def twist(
     rng = OracleRNG(seed)
     result = ask_twist(rng)
 
-    if format == OutputFormat.JSON:
+    if output_format == OutputFormat.JSON:
         print(json.dumps(asdict(result), indent=2))
     else:
         # Text output with Rich formatting
@@ -141,16 +141,20 @@ def chaos_roll_cmd(
         Optional[int],
         typer.Option("--seed", "-s", help="Random seed for deterministic output"),
     ] = None,
-    format: Annotated[
+    output_format: Annotated[
         OutputFormat,
         typer.Option("--format", "-f", help="Output format"),
     ] = OutputFormat.TEXT,
 ):
     """Roll chaos dice and track the pool."""
+    if dice < 1:
+        typer.echo("Error: dice must be >= 1", err=True)
+        raise typer.Exit(1)
+
     rng = OracleRNG(seed)
     result = chaos_roll(dice, rng)
 
-    if format == OutputFormat.JSON:
+    if output_format == OutputFormat.JSON:
         print(json.dumps(asdict(result), indent=2))
     else:
         # Text output with Rich formatting
@@ -162,7 +166,3 @@ def chaos_roll_cmd(
             console.print("[bold red]⚠ EVENT TRIGGERED! ⚠[/]")
         else:
             console.print("[dim]No event triggered[/]")
-
-
-if __name__ == "__main__":
-    app()
