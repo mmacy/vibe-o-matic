@@ -13,7 +13,7 @@ from oracle.util import OracleRNG
 
 app = typer.Typer(
     name="oracle",
-    help="Old-School Solo Oracle CLI",
+    help="Old-School Solo Oracle CLI - Tools for solo RPG players to answer questions, generate inspiration, and introduce chaos into their game sessions.",
     add_completion=False,
 )
 console = Console()
@@ -37,7 +37,11 @@ def closed(
     question: Annotated[str, typer.Option(..., "--question", "-q", help="The yes/no question to ask")],
     likelihood: Annotated[
         Likelihood,
-        typer.Option("--likelihood", "-l", help="Likelihood of positive answer"),
+        typer.Option(
+            "--likelihood",
+            "-l",
+            help="Likelihood of positive answer. Valid values: very_unlikely, unlikely, even, likely, very_likely",
+        ),
     ] = Likelihood.EVEN,
     seed: Annotated[
         Optional[int],
@@ -48,7 +52,14 @@ def closed(
         typer.Option("--format", "-f", help="Output format"),
     ] = OutputFormat.TEXT,
 ):
-    """Ask a closed (yes/no) question."""
+    """Ask a closed (yes/no) question.
+
+    Roll a d6 with modifiers to get a YES/NO answer along with context like scenario and tone.
+
+    Examples:
+      oracle closed -q "Is the door locked?" -l likely
+      oracle closed -q "Does the guard notice me?" -l very_unlikely
+    """
     rng = OracleRNG(seed)
     result = ask_closed(question, likelihood, rng)
 
@@ -76,7 +87,12 @@ def closed(
 def muse(
     theme: Annotated[
         list[str],
-        typer.Option(..., "--theme", "-t", help="Theme(s) to use (round-robin if multiple)"),
+        typer.Option(
+            ...,
+            "--theme",
+            "-t",
+            help="Theme(s) to use (round-robin if multiple). Valid themes: Change, Divine, Monstrous, Place, Social, Sorcery, Swords, Talk, Treasure, Wilderness",
+        ),
     ],
     count: Annotated[int, typer.Option("--count", "-c", help="Number of words to generate")] = 1,
     seed: Annotated[
@@ -88,7 +104,16 @@ def muse(
         typer.Option("--format", "-f", help="Output format"),
     ] = OutputFormat.TEXT,
 ):
-    """Get inspiration words from theme tables."""
+    """Get inspiration words from theme tables.
+
+    Roll on thematic d20 tables to generate evocative words for creative inspiration.
+    When multiple themes are specified, words are drawn round-robin from each theme.
+
+    Examples:
+      oracle muse -t Change
+      oracle muse -t Swords -t Sorcery -c 5
+      oracle muse -t Wilderness -t Treasure -c 10
+    """
     if not theme:
         typer.echo("Error: At least one --theme is required", err=True)
         raise typer.Exit(1)
@@ -120,7 +145,15 @@ def twist(
         typer.Option("--format", "-f", help="Output format"),
     ] = OutputFormat.TEXT,
 ):
-    """Generate a plot twist."""
+    """Generate a plot twist.
+
+    Roll for a random subject and action combination to create unexpected story developments.
+    Useful for adding surprise elements or complications to your solo game.
+
+    Examples:
+      oracle twist
+      oracle twist -s 42
+    """
     rng = OracleRNG(seed)
     result = ask_twist(rng)
 
@@ -136,7 +169,7 @@ def twist(
 
 @app.command(name="chaos-roll")
 def chaos_roll_cmd(
-    dice: Annotated[int, typer.Option(..., "--dice", "-d", help="Number of d6s to roll")],
+    dice: Annotated[int, typer.Option(..., "--dice", "-d", help="Number of d6s to roll (current pool size)")],
     seed: Annotated[
         Optional[int],
         typer.Option("--seed", "-s", help="Random seed for deterministic output"),
@@ -146,7 +179,16 @@ def chaos_roll_cmd(
         typer.Option("--format", "-f", help="Output format"),
     ] = OutputFormat.TEXT,
 ):
-    """Roll chaos dice and track the pool."""
+    """Roll chaos dice and track the pool.
+
+    Roll Nd6 and count the sixes. The next pool size = current pool - sixes rolled.
+    If the pool reaches 0, an event is triggered! Use this to add unpredictable
+    tension and escalation to your solo game sessions.
+
+    Examples:
+      oracle chaos-roll -d 6
+      oracle chaos-roll -d 3 -s 123
+    """
     if dice < 1:
         typer.echo("Error: dice must be >= 1", err=True)
         raise typer.Exit(1)

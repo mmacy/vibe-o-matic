@@ -9,6 +9,11 @@ A stateless Oracle CLI tool implementing the core oracles from Old-School Solo f
 - **Plot Twist**: Generate random plot twists with subject + action
 - **Chaos Dice**: Track chaos pool with stateless dice rolling
 
+## Documentation
+
+- **[Command reference](docs/COMMAND_REFERENCE.md)**: Complete reference for all commands with detailed examples
+- **[Design documentation](docs/DESIGN.md)**: Technical specifications and architecture
+
 ## Installation
 
 Using `uv` (recommended):
@@ -23,62 +28,123 @@ Using `pip`:
 pip install .
 ```
 
+## Quick start
+
+View available commands and options:
+
+```bash
+oracle --help
+oracle closed --help
+oracle muse --help
+```
+
 ## Usage
 
-### Closed Oracle
+The Oracle CLI provides four core commands for solo RPG play. See the [command reference](docs/COMMAND_REFERENCE.md) for complete documentation.
+
+### Closed Oracle - answer yes/no questions
 
 Ask yes/no questions with likelihood modifiers:
 
 ```bash
-oracle closed --question "Is the door locked?" --likelihood likely
-oracle closed -q "Is it raining?" -l very_unlikely
+# Basic question (50/50 odds)
+oracle closed -q "Is the door locked?"
+
+# With likelihood modifier
+oracle closed -q "Does the guard notice me?" -l very_unlikely
+
+# More likely outcomes
+oracle closed -q "Is there a tavern nearby?" -l likely
 ```
 
-Likelihood options: `very_unlikely`, `unlikely`, `even` (default), `likely`, `very_likely`
+**Likelihood options:** `very_unlikely`, `unlikely`, `even` (default), `likely`, `very_likely`
 
-### Muse
+Output includes the answer (YES/NO), roll details, scenario context, and tone.
 
-Get inspiration words from theme tables:
+### Muse - get thematic inspiration
+
+Get inspiration words from thematic d20 tables:
 
 ```bash
-oracle muse --theme Change --count 3
-oracle muse -t Social -t Swords -c 6
+# Single inspiration word
+oracle muse -t Change
+
+# Multiple words from one theme
+oracle muse -t Swords -c 5
+
+# Alternate between themes (round-robin)
+oracle muse -t Wilderness -t Treasure -c 6
 ```
 
-Available themes: `Change`, `Social`, `Swords`, `Sorcery`, `Divine`, `Monstrous`, `Treasure`, `Wilderness`, `Talk`, `Place`
+**Available themes:** `Change`, `Divine`, `Monstrous`, `Place`, `Social`, `Sorcery`, `Swords`, `Talk`, `Treasure`, `Wilderness`
 
-### Plot Twist
+Each theme provides 20 evocative words for creative inspiration.
 
-Generate a random plot twist:
+### Twist - generate plot twists
+
+Generate random plot twists for unexpected story developments:
 
 ```bash
 oracle twist
 ```
 
-### Chaos Dice
+Combines a random subject with a random action to create surprising complications.
 
-Roll chaos dice and track the pool:
+### Chaos roll - track chaos pool
+
+Roll chaos dice to add unpredictable events:
 
 ```bash
-oracle chaos-roll --dice 4
+# Roll chaos pool (typically start with 6)
 oracle chaos-roll -d 6
+
+# Roll smaller pool after sixes removed
+oracle chaos-roll -d 3
 ```
 
-## Global Options
+**How it works:** Roll Nd6, count the sixes. Next pool = current pool - sixes. When pool reaches 0, an event triggers!
+
+## Advanced usage
+
+### Global options
 
 All commands support:
 
-- `--format [text|json]`: Output format (default: text)
-- `--seed INTEGER`: Seed for deterministic output (useful for testing or LLM integration)
+- `--format, -f [text|json]`: Output format (default: `text`)
+- `--seed, -s INTEGER`: Random seed for deterministic output
 
 Examples:
 
 ```bash
-oracle closed -q "Is it safe?" --format json --seed 42
-oracle muse -t Change -c 2 --format json --seed 123
+# Get JSON output for parsing
+oracle closed -q "Is it safe?" -f json
+
+# Use a seed for reproducible results
+oracle muse -t Change -c 2 -s 42
 ```
 
-## Running as a Module
+### Example solo play session
+
+Here's a quick example of using multiple oracles together:
+
+```bash
+# Does the party find the hidden temple?
+$ oracle closed -q "Do we find the hidden temple?" -l likely
+YES (and...)
+Roll: 5 + 1 = 6
+
+# What's the temple like?
+$ oracle muse -t Place -t Divine -c 3
+Place (d20=17): Crypt
+Divine (d20=8): Spirit
+Place (d20=13): Cave
+
+# A random complication appears!
+$ oracle twist
+An ancient curse awakens
+```
+
+### Running as a module
 
 You can also run the CLI as a Python module:
 
@@ -94,7 +160,7 @@ python -m oracle closed -q "Is the door locked?"
 uv run pytest
 ```
 
-### Project Structure
+### Project structure
 
 ```
 oracle/
@@ -104,8 +170,6 @@ oracle/
   cli.py       # Typer CLI interface
 tests/         # Test suite
 ```
-
-See [docs/DESIGN.md](docs/DESIGN.md) for detailed technical specifications.
 
 ## License
 
