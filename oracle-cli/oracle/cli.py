@@ -34,7 +34,7 @@ def callback():
 
 @app.command()
 def closed(
-    question: Annotated[str, typer.Option("--question", "-q", help="The yes/no question to ask")],
+    question: Annotated[str, typer.Option(..., "--question", "-q", help="The yes/no question to ask")],
     likelihood: Annotated[
         Likelihood,
         typer.Option("--likelihood", "-l", help="Likelihood of positive answer"),
@@ -76,7 +76,7 @@ def closed(
 def muse(
     theme: Annotated[
         list[str],
-        typer.Option("--theme", "-t", help="Theme(s) to use (round-robin if multiple)"),
+        typer.Option(..., "--theme", "-t", help="Theme(s) to use (round-robin if multiple)"),
     ],
     count: Annotated[int, typer.Option("--count", "-c", help="Number of words to generate")] = 1,
     seed: Annotated[
@@ -136,7 +136,7 @@ def twist(
 
 @app.command(name="chaos-roll")
 def chaos_roll_cmd(
-    dice: Annotated[int, typer.Option("--dice", "-d", help="Number of d6s to roll")],
+    dice: Annotated[int, typer.Option(..., "--dice", "-d", help="Number of d6s to roll")],
     seed: Annotated[
         Optional[int],
         typer.Option("--seed", "-s", help="Random seed for deterministic output"),
