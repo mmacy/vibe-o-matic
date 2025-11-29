@@ -10,6 +10,7 @@ Complete reference for all Oracle CLI commands with detailed options, parameters
 | `muse` | Get thematic inspiration words | `-t` (theme), `-c` (count) |
 | `twist` | Generate plot twists | No required options |
 | `chaos-roll` | Roll chaos dice | `-d` (dice) |
+| `roll` | Roll polyhedral dice | notation argument |
 
 ## Global options
 
@@ -355,6 +356,118 @@ Next Pool: 0
 }
 ```
 
+### roll
+
+Roll polyhedral dice using standard notation.
+
+**Syntax:**
+
+```bash
+oracle roll NOTATION [OPTIONS]
+```
+
+**Required arguments:**
+
+- `NOTATION`: Dice notation in format `[count]d[sides][+/-modifier]`
+  - Examples: `1d20`, `2d6+3`, `1d8-1`, `3d6`
+
+**Optional parameters:**
+
+- `--seed, -s INTEGER`: Random seed for deterministic output
+- `--format, -f [text|json]`: Output format (default: `text`)
+
+**Supported dice:**
+
+All standard polyhedral dice plus any arbitrary-sided die:
+
+- d4, d6, d8, d10, d12, d20, d100
+- Any custom die (e.g., d7, d30, d1000)
+
+**How it works:**
+
+1. Parses dice notation (e.g., "2d6+3")
+2. Rolls each die using deterministic RNG
+3. Sums individual rolls
+4. Applies modifier (if present)
+5. Returns individual rolls and total
+
+**Examples:**
+
+```bash
+# Simple roll
+oracle roll 1d20
+
+# With modifier
+oracle roll 1d8+2
+
+# Negative modifier
+oracle roll 1d6-1
+
+# Multiple dice
+oracle roll 2d6
+
+# Ability score generation
+oracle roll 3d6
+
+# Percentile roll
+oracle roll 1d100
+
+# Custom die
+oracle roll 1d7
+
+# Deterministic roll
+oracle roll 2d6+3 --seed 42
+
+# JSON output
+oracle roll 1d20 -f json
+```
+
+**Example output (text):**
+
+```
+1d8+2
+Rolls (1d8): 5
+Modifier: +2
+
+Total: 7
+```
+
+**Example output with multiple dice:**
+
+```
+2d6+3
+Rolls (2d6): 4, 5
+Modifier: +3
+
+Total: 12
+```
+
+**Example output (json):**
+
+```json
+{
+  "type": "roll",
+  "notation": "2d6+3",
+  "count": 2,
+  "sides": 6,
+  "modifier": 3,
+  "rolls": [
+    {"die": 6, "roll": 4},
+    {"die": 6, "roll": 5}
+  ],
+  "total": 12
+}
+```
+
+**Common use cases:**
+
+- **Attack rolls**: `oracle roll 1d20`
+- **Damage rolls**: `oracle roll 1d8+2` (weapon + STR modifier)
+- **Ability scores**: `oracle roll 3d6` (or `4d6` if using drop lowest)
+- **Hit points**: `oracle roll 1d8` per level
+- **Saving throws**: `oracle roll 1d20`
+- **Treasure tables**: `oracle roll 1d100`
+
 ## Combining commands
 
 The Oracle CLI is designed to work well in shell scripts and with other tools.
@@ -483,4 +596,5 @@ oracle closed --help
 oracle muse --help
 oracle twist --help
 oracle chaos-roll --help
+oracle roll --help
 ```

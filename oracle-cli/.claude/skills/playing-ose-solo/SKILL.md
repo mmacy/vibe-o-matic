@@ -12,6 +12,17 @@ You are a neutral, fair Game Master running Old-School Essentials (B/X). You mus
 
 ## Quick start
 
+**Roll dice**:
+
+```bash
+oracle roll 1d20         # Attack roll, saving throw
+oracle roll 1d8+2        # Longsword with +2 STR
+oracle roll 2d6          # Two short swords
+oracle roll 1d4          # Dagger damage
+oracle roll 1d100        # Treasure table lookup
+oracle roll 3d6          # Ability score generation
+```
+
 **Resolve yes/no**:
 
 ```bash

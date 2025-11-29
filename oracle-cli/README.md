@@ -8,6 +8,7 @@ A stateless Oracle CLI tool implementing the core oracles from Old-School Solo f
 - **Muse**: Get thematic inspiration words from 10 different themes
 - **Plot Twist**: Generate random plot twists with subject + action
 - **Chaos Dice**: Track chaos pool with stateless dice rolling
+- **Dice Roller**: Roll polyhedral dice with standard notation (d4, d6, d8, d10, d12, d20, d100)
 
 ## Documentation
 
@@ -40,7 +41,7 @@ oracle muse --help
 
 ## Usage
 
-The Oracle CLI provides four core commands for solo RPG play. See the [command reference](docs/COMMAND_REFERENCE.md) for complete documentation.
+The Oracle CLI provides five core commands for solo RPG play. See the [command reference](docs/COMMAND_REFERENCE.md) for complete documentation.
 
 ### Closed Oracle - answer yes/no questions
 
@@ -103,6 +104,31 @@ oracle chaos-roll -d 3
 ```
 
 **How it works:** Roll Nd6, count the sixes. Next pool = current pool - sixes. When pool reaches 0, an event triggers!
+
+### Roll - roll polyhedral dice
+
+Roll any polyhedral dice using standard notation:
+
+```bash
+# Attack roll
+oracle roll 1d20
+
+# Damage with modifier
+oracle roll 1d8+2
+
+# Multiple dice
+oracle roll 2d6
+
+# Ability score
+oracle roll 3d6
+
+# Percentile
+oracle roll 1d100
+```
+
+**Dice notation:** `[count]d[sides][+/-modifier]`
+
+Supports all standard polyhedrals (d4, d6, d8, d10, d12, d20, d100) and any arbitrary-sided die.
 
 ## Advanced usage
 
