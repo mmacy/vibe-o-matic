@@ -8,7 +8,14 @@ from typing import Annotated, Optional
 import typer
 from rich.console import Console
 
-from oracle.core import Likelihood, ask_closed, ask_muse, ask_twist, chaos_roll
+from oracle.core import (
+    Likelihood,
+    ask_closed,
+    ask_muse,
+    ask_twist,
+    chaos_roll,
+    roll_dice,
+)
 from oracle.util import OracleRNG
 
 app = typer.Typer(
@@ -34,7 +41,9 @@ def callback():
 
 @app.command()
 def closed(
-    question: Annotated[str, typer.Option(..., "--question", "-q", help="The yes/no question to ask")],
+    question: Annotated[
+        str, typer.Option(..., "--question", "-q", help="The yes/no question to ask")
+    ],
     likelihood: Annotated[
         Likelihood,
         typer.Option(
@@ -94,7 +103,9 @@ def muse(
             help="Theme(s) to use (round-robin if multiple). Valid themes: Change, Divine, Monstrous, Place, Social, Sorcery, Swords, Talk, Treasure, Wilderness",
         ),
     ],
-    count: Annotated[int, typer.Option("--count", "-c", help="Number of words to generate")] = 1,
+    count: Annotated[
+        int, typer.Option("--count", "-c", help="Number of words to generate")
+    ] = 1,
     seed: Annotated[
         Optional[int],
         typer.Option("--seed", "-s", help="Random seed for deterministic output"),
@@ -169,7 +180,12 @@ def twist(
 
 @app.command(name="chaos-roll")
 def chaos_roll_cmd(
-    dice: Annotated[int, typer.Option(..., "--dice", "-d", help="Number of d6s to roll (current pool size)")],
+    dice: Annotated[
+        int,
+        typer.Option(
+            ..., "--dice", "-d", help="Number of d6s to roll (current pool size)"
+        ),
+    ],
     seed: Annotated[
         Optional[int],
         typer.Option("--seed", "-s", help="Random seed for deterministic output"),
@@ -208,3 +224,56 @@ def chaos_roll_cmd(
             console.print("[bold red]⚠ EVENT TRIGGERED! ⚠[/]")
         else:
             console.print("[dim]No event triggered[/]")
+
+
+@app.command()
+def roll(
+    notation: Annotated[
+        str, typer.Argument(help="Dice notation (e.g., 1d20, 2d6+3, 1d8-1)")
+    ],
+    seed: Annotated[
+        Optional[int],
+        typer.Option("--seed", "-s", help="Random seed for deterministic rolling"),
+    ] = None,
+    output_format: Annotated[
+        OutputFormat,
+        typer.Option("--format", "-f", help="Output format"),
+    ] = OutputFormat.TEXT,
+):
+    """Roll polyhedral dice using standard notation.
+
+    Supports standard polyhedral dice (d4, d6, d8, d10, d12, d20, d100) and any
+    arbitrary-sided die. Accepts modifiers in the notation (e.g., +3, -1).
+
+    Examples:
+      oracle roll 1d20              # Roll a d20
+      oracle roll 2d6+3             # Roll 2d6 and add 3
+      oracle roll 1d8-1             # Roll 1d8 and subtract 1
+      oracle roll 3d6               # Roll 3d6 (e.g., ability score)
+      oracle roll 1d100 --seed 42   # Deterministic percentile roll
+    """
+    try:
+        rng = OracleRNG(seed)
+        result = roll_dice(notation, rng)
+
+        if output_format == OutputFormat.JSON:
+            print(json.dumps(asdict(result), indent=2))
+        else:
+            # Text output with Rich formatting
+            console.print(f"\n[bold]{result.notation}[/bold]")
+
+            # Show individual rolls
+            roll_display = ", ".join([f"[cyan]{r.roll}[/cyan]" for r in result.rolls])
+            console.print(f"Rolls ({result.count}d{result.sides}): {roll_display}")
+
+            # Show modifier if present
+            if result.modifier != 0:
+                sign = "+" if result.modifier > 0 else ""
+                console.print(f"Modifier: {sign}{result.modifier}")
+
+            # Show total
+            console.print(f"\n[bold green]Total: {result.total}[/bold green]\n")
+
+    except ValueError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1)
