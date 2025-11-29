@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(playing-ose-solo)",
+      "Bash(oracle closed:*)",
+      "Bash(oracle twist:*)",
+      "Bash(oracle muse:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
