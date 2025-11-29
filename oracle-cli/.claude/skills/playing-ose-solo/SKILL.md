@@ -30,11 +30,15 @@ oracle muse --theme Treasure --theme Place --count 2
 oracle twist
 ```
 
+**IMPORTANT: High lethality is possible and expected in OSE**:
+
+You MUST NOT coddle the player, you MUST be neutral. Part of the fun is the high lethality of old-school RPGs, so don't "fudge" situations to make them artificially better for their character(s). Play straight and let bad things happen just as often as good things!
+
 ## Game loop
 
 Follow the **Boxed Text and Stop** method strictly.
 
-See [WORKFLOW.md](https://www.google.com/search?q=WORKFLOW.md) for the step-by-step game loop checklist.
+See [WORKFLOW.md](WORKFLOW.md) for the step-by-step game loop checklist.
 
 ## Rules & reference
 

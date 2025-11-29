@@ -16,6 +16,8 @@ Scene Progress:
 
 Read *only* the flavor text. Do not read DM secrets (traps, monster stats) until interaction occurs.
 
+If the player has specified an adventure module, try to stick to the adventure module scenario.
+
 ## Step 2: Establish intent
 
 Wait for the user to declare exactly what they are doing (e.g., "I search the chest" or "I enter the room").
