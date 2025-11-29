@@ -215,3 +215,69 @@ def test_all_commands_support_seed():
         app, ["chaos-roll", "-d", "3", "--seed", "999", "--format", "json"]
     )
     assert r1.stdout == r2.stdout
+
+
+def test_roll_command_text_output():
+    """Test roll command with text output."""
+    result = runner.invoke(app, ["roll", "1d20", "--seed", "42"])
+    assert result.exit_code == 0
+    assert "1d20" in result.stdout
+    assert "Total:" in result.stdout
+
+
+def test_roll_command_json_output():
+    """Test roll command with JSON output."""
+    result = runner.invoke(app, ["roll", "2d6+3", "--seed", "42", "--format", "json"])
+    assert result.exit_code == 0
+
+    output = json.loads(result.stdout)
+    assert output["type"] == "roll"
+    assert output["notation"] == "2d6+3"
+    assert output["count"] == 2
+    assert output["sides"] == 6
+    assert output["modifier"] == 3
+    assert len(output["rolls"]) == 2
+    assert "total" in output
+
+
+def test_roll_command_determinism():
+    """Test that same seed produces same output."""
+    result1 = runner.invoke(app, ["roll", "2d6+3", "--seed", "123", "--format", "json"])
+    result2 = runner.invoke(app, ["roll", "2d6+3", "--seed", "123", "--format", "json"])
+
+    assert result1.exit_code == 0
+    assert result2.exit_code == 0
+    assert result1.stdout == result2.stdout
+
+
+def test_roll_command_all_polyhedrals():
+    """Test all common polyhedral dice."""
+    for sides in [4, 6, 8, 10, 12, 20, 100]:
+        result = runner.invoke(
+            app, ["roll", f"1d{sides}", "--seed", "42", "--format", "json"]
+        )
+        assert result.exit_code == 0
+        output = json.loads(result.stdout)
+        assert output["sides"] == sides
+
+
+def test_roll_command_with_negative_modifier():
+    """Test roll with negative modifier."""
+    result = runner.invoke(app, ["roll", "1d8-1", "--seed", "42", "--format", "json"])
+    assert result.exit_code == 0
+
+    output = json.loads(result.stdout)
+    assert output["modifier"] == -1
+
+
+def test_roll_command_invalid_notation():
+    """Test roll command with invalid notation."""
+    result = runner.invoke(app, ["roll", "invalid"])
+    assert result.exit_code != 0
+    assert "Error:" in result.stderr or "Error:" in result.stdout
+
+
+def test_roll_command_requires_notation():
+    """Test that roll command requires notation argument."""
+    result = runner.invoke(app, ["roll"])
+    assert result.exit_code != 0

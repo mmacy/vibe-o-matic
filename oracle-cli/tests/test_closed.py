@@ -1,7 +1,5 @@
 """Tests for the Closed Oracle."""
 
-import pytest
-
 from oracle.core import Likelihood, ask_closed
 from oracle.util import OracleRNG
 
