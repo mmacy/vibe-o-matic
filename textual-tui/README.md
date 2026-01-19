@@ -5,11 +5,14 @@ A terminal user interface for vibe-o-matic, built with [Textual](https://textual
 ## Installation
 
 ```bash
-# Install in development mode
-pip install -e .
+# Install as a tool with uv
+uv tool install .
+
+# Or install in development mode
+uv pip install -e .
 
 # Or with development dependencies
-pip install -e '.[dev]'
+uv pip install -e '.[dev]'
 ```
 
 ## Usage
@@ -31,7 +34,7 @@ python -m textual_tui.app
 For development with live editing and debugging:
 
 ```bash
-pip install -e '.[dev]'
+uv pip install -e '.[dev]'
 textual run --dev textual_tui/app.py
 ```
 
