@@ -2,6 +2,8 @@
 
 A terminal user interface for vibe-o-matic, built with [Textual](https://textual.textualize.io/).
 
+This TUI provides an interactive command-line experience for solo tabletop RPG tools with rich formatting and keyboard navigation.
+
 ## Installation
 
 ```bash
@@ -38,6 +40,19 @@ uv pip install -e '.[dev]'
 textual run --dev textual_tui/app.py
 ```
 
+## Testing
+
+Run the test suite:
+
+```bash
+uv pip install -e '.[dev]'
+pytest tests -v
+```
+
 ## Key Bindings
 
 - `q` - Quit the application
+
+## Contributing
+
+See [CLAUDE.md](CLAUDE.md) for detailed information about the project architecture, development guidelines, and how to contribute.
