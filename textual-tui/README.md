@@ -2,41 +2,47 @@
 
 A terminal user interface for vibe-o-matic, built with [Textual](https://textual.textualize.io/).
 
-This TUI provides an interactive command-line experience for solo tabletop RPG tools with rich formatting and keyboard navigation.
+This project is currently a minimal scaffold: it renders a header and footer, includes a single quit key binding, and provides the entry point for a future TUI experience. It does not yet integrate with oracle-cli or expose gameplay features.
 
-## Installation
+## What you get today
+
+- A working Textual app shell with header and footer widgets.
+- A `vibe-tui` console script for launching the app.
+- A small pytest suite that validates the core structure.
+
+## Requirements
+
+- Python 3.11 or newer.
+- [uv](https://docs.astral.sh/uv/) for environment and dependency management (recommended).
+
+## Install and run locally
+
+From the `textual-tui` directory:
 
 ```bash
-# Install as a tool with uv
-uv tool install .
-
-# Or install in development mode
+uv venv
+source .venv/bin/activate
 uv pip install -e .
-
-# Or with development dependencies
-uv pip install -e '.[dev]'
-```
-
-## Usage
-
-Run the TUI:
-
-```bash
 vibe-tui
 ```
 
-Or run directly with Python:
+If you prefer to run the module directly:
 
 ```bash
 python -m textual_tui.app
 ```
 
-## Development
+## Development workflow
 
-For development with live editing and debugging:
+Install the development dependencies:
 
 ```bash
 uv pip install -e '.[dev]'
+```
+
+Run the app with live reloading:
+
+```bash
 textual run --dev textual_tui/app.py
 ```
 
@@ -49,10 +55,20 @@ uv pip install -e '.[dev]'
 pytest tests -v
 ```
 
-## Key Bindings
+## Key bindings
 
-- `q` - Quit the application
+- `q`: Quit the application.
+
+## Project layout
+
+```
+textual-tui/
+├── textual_tui/   # Application package
+├── tests/         # Pytest suite
+├── pyproject.toml # Package metadata and dependencies
+└── README.md      # This document
+```
 
 ## Contributing
 
-See [CLAUDE.md](CLAUDE.md) for detailed information about the project architecture, development guidelines, and how to contribute.
+See [CLAUDE.md](CLAUDE.md) for architecture notes, code style expectations, and contribution guidance.
