@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""Fake Claude CLI for testing.
+
+This script mimics the behavior of `claude -p`:
+- Takes prompt as argument
+- Takes --json-schema as JSON string
+- Outputs JSON with structured_output field to stdout
+
+Usage:
+    claude -p <prompt> --output-format json --json-schema <schema_json>
+"""
+
+import json
+import sys
+import time
+
+
+def main():
+    args = sys.argv[1:]
+
+    # Parse arguments
+    prompt = ""
+    schema_json = None
+    output_format = None
+
+    i = 0
+    while i < len(args):
+        if args[i] == "-p" and i + 1 < len(args):
+            prompt = args[i + 1]
+            i += 2
+        elif args[i] == "--json-schema" and i + 1 < len(args):
+            schema_json = args[i + 1]
+            i += 2
+        elif args[i] == "--output-format" and i + 1 < len(args):
+            output_format = args[i + 1]
+            i += 2
+        else:
+            i += 1
+
+    if not prompt:
+        print("Usage: claude -p <prompt> ...", file=sys.stderr)
+        sys.exit(1)
+
+    # Simulate streaming output to stderr
+    print("Thinking...", file=sys.stderr)
+    time.sleep(0.1)
+    print("Processing...", file=sys.stderr)
+    time.sleep(0.1)
+    print("Generating response...", file=sys.stderr)
+    time.sleep(0.1)
+
+    # Determine if this is implementer or reviewer based on prompt
+    is_reviewer = "reviewer" in prompt.lower() or "review" in prompt.lower()
+
+    if is_reviewer:
+        # Check for REPAIR OUTPUT to simulate approval after repair
+        if "REPAIR OUTPUT" in prompt:
+            structured_output = {
+                "type": "reviewer_result",
+                "verdict": "approved",
+                "requested_changes": [],
+                "notes": ["Code looks good after repair"],
+            }
+        else:
+            structured_output = {
+                "type": "reviewer_result",
+                "verdict": "approved",
+                "requested_changes": [],
+                "notes": ["Code looks good"],
+            }
+    else:
+        structured_output = {
+            "type": "implementer_result",
+            "summary": "Implemented the requested changes",
+            "commit_message": "feat: implement requested changes",
+            "tests": [
+                {"command": "pytest", "result": "pass", "notes": "All tests passed"},
+            ],
+            "notes": ["Implementation complete"],
+        }
+
+    # Output JSON with structured_output wrapper
+    response = {"structured_output": structured_output}
+    print(json.dumps(response))
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()

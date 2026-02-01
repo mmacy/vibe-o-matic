@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+"""Fake Codex CLI for testing.
+
+This script mimics the behavior of `codex exec`:
+- Reads prompt from stdin (when `-` is passed as PROMPT)
+- Outputs streaming progress to stderr
+- Writes final JSON to --output-last-message path
+
+Usage:
+    codex exec --full-auto --output-schema <schema> --output-last-message <path> -
+"""
+
+import json
+import sys
+import time
+import os
+
+
+def main():
+    args = sys.argv[1:]
+
+    # Parse arguments
+    if "exec" not in args:
+        print("Usage: codex exec ...", file=sys.stderr)
+        sys.exit(1)
+
+    output_path = None
+    schema_path = None
+
+    i = 0
+    while i < len(args):
+        if args[i] == "--output-last-message" and i + 1 < len(args):
+            output_path = args[i + 1]
+            i += 2
+        elif args[i] == "--output-schema" and i + 1 < len(args):
+            schema_path = args[i + 1]
+            i += 2
+        else:
+            i += 1
+
+    # Read prompt from stdin if `-` is in args
+    prompt = ""
+    if "-" in args:
+        prompt = sys.stdin.read()
+
+    # Simulate streaming output
+    print("Starting implementation...", file=sys.stderr)
+    time.sleep(0.1)
+    print("Analyzing task...", file=sys.stderr)
+    time.sleep(0.1)
+    print("Making changes...", file=sys.stderr)
+    time.sleep(0.1)
+    print("Running tests...", file=sys.stderr)
+    time.sleep(0.1)
+    print("Done!", file=sys.stderr)
+
+    # Determine if this is implementer or reviewer based on prompt
+    is_reviewer = "reviewer" in prompt.lower() or "review" in prompt.lower()
+
+    if is_reviewer:
+        # Check for REPAIR OUTPUT to simulate approval after repair
+        if "REPAIR OUTPUT" in prompt:
+            result = {
+                "type": "reviewer_result",
+                "verdict": "approved",
+                "requested_changes": [],
+                "notes": ["Code looks good after repair"],
+            }
+        else:
+            result = {
+                "type": "reviewer_result",
+                "verdict": "approved",
+                "requested_changes": [],
+                "notes": ["Code looks good"],
+            }
+    else:
+        result = {
+            "type": "implementer_result",
+            "summary": "Implemented the requested changes",
+            "commit_message": "feat: implement requested changes",
+            "tests": [
+                {"command": "pytest", "result": "pass", "notes": "All tests passed"},
+            ],
+            "notes": ["Implementation complete"],
+        }
+
+    # Write output to file
+    if output_path:
+        with open(output_path, "w") as f:
+            json.dump(result, f)
+
+    # Also write to stdout for debugging
+    print(json.dumps(result))
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()

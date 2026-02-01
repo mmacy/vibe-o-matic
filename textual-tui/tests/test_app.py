@@ -1,14 +1,14 @@
 """Unit tests for the main Textual TUI application.
 
-This test module provides comprehensive testing coverage for the VibeTUI application
-class and its core functionality. Tests use Textual's async test harness to verify
-widget composition, key bindings, and application lifecycle.
+This test module provides comprehensive testing coverage for the VibeOrchestrator
+application class and its core functionality. Tests use Textual's async test
+harness to verify screen composition, key bindings, and application lifecycle.
 
 The test suite covers:
 - Application initialization and instantiation
-- Widget composition and DOM structure
+- Screen composition and structure
 - Key binding configuration and behavior
-- Widget mounting and rendering order
+- Screen navigation
 
 All tests are asynchronous and use pytest-asyncio markers to properly handle
 Textual's async event loop during testing.
@@ -26,57 +26,66 @@ Example:
 import pytest
 from textual.widgets import Footer, Header
 
-from textual_tui.app import VibeTUI
+from textual_tui.app import VibeTUI, VibeOrchestrator
+from textual_tui.ui.screens import DashboardScreen
 
 
 @pytest.mark.asyncio
-async def test_app_initialization():
-    """Test that the VibeTUI app can be instantiated.
+async def test_app_initialization(tmp_path):
+    """Test that the VibeOrchestrator app can be instantiated.
 
-    Verifies that the VibeTUI class can be successfully instantiated without
-    errors and that the resulting object is of the correct type. This is a
-    basic smoke test to ensure the application class is properly configured.
+    Verifies that the VibeOrchestrator class can be successfully instantiated
+    without errors and that the resulting object is of the correct type. This
+    is a basic smoke test to ensure the application class is properly configured.
 
     This test does not start the application's event loop, it only verifies
     that the class constructor works correctly.
     """
-    app = VibeTUI()
+    app = VibeOrchestrator(repo_root=tmp_path)
     assert app is not None
-    assert isinstance(app, VibeTUI)
+    assert isinstance(app, VibeOrchestrator)
+
+    # VibeTUI is an alias for backward compatibility
+    assert VibeTUI is VibeOrchestrator
 
 
 @pytest.mark.asyncio
-async def test_app_composition():
-    """Test that the app composes the expected widgets.
+async def test_app_composition(tmp_path):
+    """Test that the app composes the expected screens and widgets.
 
-    Verifies that the compose() method yields the correct widgets in the
-    application's widget tree. The app should contain exactly one Header
-    widget and one Footer widget.
+    Verifies that the initial screen is the DashboardScreen and that it
+    contains the expected widgets (Header and Footer).
 
     This test uses Textual's run_test() context manager to start the app
     in test mode, which allows querying the widget tree without requiring
     a real terminal.
 
     The test validates:
-    - Header widget exists and is of correct type
-    - Footer widget exists and is of correct type
-    - Widgets can be queried from the DOM
+    - Initial screen is DashboardScreen
+    - Header widget exists in the screen
+    - Footer widget exists in the screen
     """
-    app = VibeTUI()
+    app = VibeOrchestrator(repo_root=tmp_path)
     async with app.run_test() as pilot:
-        # Verify Header widget is present
-        header = app.query_one(Header)
+        await pilot.pause()
+        await pilot.pause()
+
+        # Verify initial screen is DashboardScreen
+        assert isinstance(app.screen, DashboardScreen)
+
+        # Verify Header widget is present in screen
+        header = app.screen.query_one(Header)
         assert header is not None
         assert isinstance(header, Header)
 
-        # Verify Footer widget is present
-        footer = app.query_one(Footer)
+        # Verify Footer widget is present in screen
+        footer = app.screen.query_one(Footer)
         assert footer is not None
         assert isinstance(footer, Footer)
 
 
 @pytest.mark.asyncio
-async def test_app_quit_binding():
+async def test_app_quit_binding(tmp_path):
     """Test that pressing 'q' quits the application.
 
     Verifies that the key binding for quitting the application works as expected.
@@ -91,8 +100,9 @@ async def test_app_quit_binding():
     - Pressing 'q' triggers the quit action
     - App is no longer running after quit
     """
-    app = VibeTUI()
+    app = VibeOrchestrator(repo_root=tmp_path)
     async with app.run_test() as pilot:
+        await pilot.pause()
         assert app.is_running
 
         # Press 'q' to quit
@@ -104,7 +114,7 @@ async def test_app_quit_binding():
 
 
 @pytest.mark.asyncio
-async def test_app_has_bindings():
+async def test_app_has_bindings(tmp_path):
     """Test that the app has the expected key bindings configured.
 
     Verifies that the BINDINGS class attribute is correctly configured with
@@ -117,50 +127,60 @@ async def test_app_has_bindings():
     This test validates:
     - The 'q' key is bound
     - The 'q' key maps to the 'quit' action
+    - The 'd' key is bound for dashboard navigation
 
     Note:
         This test accesses BINDINGS directly as a class attribute. BINDINGS
         is a list of tuples, not binding objects, so we access elements by
         index: binding[0] is key, binding[1] is action, binding[2] is description.
     """
-    app = VibeTUI()
+    app = VibeOrchestrator(repo_root=tmp_path)
 
     # Check that 'q' binding exists and maps to quit
     # BINDINGS is a list of tuples: (key, action, description)
     bindings = {binding[0]: binding[1] for binding in app.BINDINGS}
     assert "q" in bindings
     assert bindings["q"] == "quit"
+    assert "d" in bindings
+    assert bindings["d"] == "dashboard"
 
 
 @pytest.mark.asyncio
-async def test_app_widgets_are_mounted():
-    """Test that widgets are properly mounted in the DOM.
+async def test_app_widgets_are_mounted(tmp_path):
+    """Test that widgets are properly mounted in the screen.
 
-    Verifies that all expected widgets are correctly mounted in the application's
-    DOM tree and appear in the expected order. This ensures the widget hierarchy
-    is properly constructed when the app starts.
+    Verifies that all expected widgets are correctly mounted in the
+    DashboardScreen's DOM tree and appear in the expected order.
 
     The test validates:
-    - Exactly one Header widget is mounted
-    - Exactly one Footer widget is mounted
+    - Exactly one Header widget is mounted in the screen
+    - Exactly one Footer widget is mounted in the screen
     - Header appears before Footer in the DOM tree
 
     The widget order matters for both rendering and accessibility, so this test
     ensures the UI structure matches expectations.
     """
-    app = VibeTUI()
+    app = VibeOrchestrator(repo_root=tmp_path)
     async with app.run_test() as pilot:
         # Wait for app to be fully mounted
         await pilot.pause()
+        await pilot.pause()
 
-        # Check that Header and Footer widgets exist
-        headers = app.query(Header)
-        footers = app.query(Footer)
+        # Verify we're on the DashboardScreen
+        assert isinstance(app.screen, DashboardScreen)
+
+        # Check that Header and Footer widgets exist in the screen
+        headers = app.screen.query(Header)
+        footers = app.screen.query(Footer)
         assert len(headers) == 1
         assert len(footers) == 1
 
         # Verify they're in the expected order
-        all_widgets = list(app.query("*"))
-        header_idx = next(i for i, w in enumerate(all_widgets) if isinstance(w, Header))
-        footer_idx = next(i for i, w in enumerate(all_widgets) if isinstance(w, Footer))
+        all_widgets = list(app.screen.query("*"))
+        header_idx = next(
+            i for i, w in enumerate(all_widgets) if isinstance(w, Header)
+        )
+        footer_idx = next(
+            i for i, w in enumerate(all_widgets) if isinstance(w, Footer)
+        )
         assert header_idx < footer_idx
